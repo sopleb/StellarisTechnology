@@ -164,7 +164,10 @@
     return function (t) {
       if (!f.event && t.is_event) return false;
       if (!f.repeatable && t.is_repeatable) return false;
-      for (var i = 0; i < f.only.length; i++) if (!t[f.only[i]]) return false;
+      for (var i = 0; i < f.only.length; i++) {
+        var k = f.only[i];
+        if (k === "start_all" ? !ST.startsForAll(t) : !t[k]) return false;
+      }
       if (f.tiers.size && !f.tiers.has(t.tier)) return false;
       if (f.cats.size && !(t.category || []).some(function (c) { return f.cats.has(c); })) return false;
       if (f.source && t.source !== f.source) return false;
@@ -176,9 +179,31 @@
     };
   };
 
+  // A trigger tree as indented plain text, for tooltips.
+  ST.triggerText = function (tr, depth) {
+    depth = depth || 0;
+    var line = new Array(depth + 1).join("  ") + tr.text;
+    return [line].concat((tr.children || []).map(function (c) { return ST.triggerText(c, depth + 1); })).join("\n");
+  };
+
+  // An empire starts with a start tech only when both `potential` (the tech exists for it) and
+  // `starting_potential` hold. With neither, every empire starts with it.
+  ST.startConditions = function (t) {
+    return [t.potential, t.starting_potential].filter(Boolean);
+  };
+  ST.startsForAll = function (t) {
+    return t.is_start_tech && !ST.startConditions(t).length;
+  };
+
+  // [css class, label, tooltip].
   ST.flags = function (t) {
     var out = [];
-    if (t.is_start_tech) out.push(["start", "Starting"]);
+    if (t.is_start_tech && !ST.startsForAll(t)) {
+      var why = ST.startConditions(t).map(function (c) { return ST.triggerText(c); }).join("\n");
+      out.push(["start cond", "Conditional start", "Starting tech only when:\n" + why]);
+    } else if (t.is_start_tech) {
+      out.push(["start", "Starting", "Every empire starts with this tech"]);
+    }
     if (t.is_rare) out.push(["rare", "Rare"]);
     if (t.is_dangerous) out.push(["dangerous", "Dangerous"]);
     if (t.is_repeatable) out.push(["repeatable", "Repeatable"]);

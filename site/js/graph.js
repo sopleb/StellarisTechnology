@@ -246,7 +246,7 @@
           { class: "n-sub" },
           el("span", { class: "n-tier" }, t.tier != null ? "T" + t.tier : ""),
           el("span", { class: "n-cost" }, ST.fmtNum(t.cost)),
-          flags.length ? el("span", { class: "n-flags" }, flags.map(function (f) { return el("i", { class: "dot " + f[0], title: f[1] }); })) : null,
+          flags.length ? el("span", { class: "n-flags" }, flags.map(function (f) { return el("i", { class: "dot " + f[0], title: f[2] ? f[1] + "\n" + f[2] : f[1] }); })) : null,
           external ? el("span", { class: "n-ext", title: external + (external > 1 ? " prerequisites" : " prerequisite") + " in another area" }, "↰" + external) : null
         )
       );

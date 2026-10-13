@@ -112,6 +112,7 @@ A `Trigger` node:
 - **Search and filters:**
   - Search covers names, keys and unlock names. `/` jumps to the search box, and Enter selects the first match.
   - Filters cover tier, category, rare, dangerous, starting, insight, event techs, repeatables and source mod.
+- **Start techs:** "Starting" means every empire starts with the tech. "Conditional start" means the tech has a `potential` or `starting_potential`, so only some empires start with it. Hover the badge, or open the tech, to see the condition. Hyperspace Travel, for example, starts for every empire without an explorer civic.
 - **Shareable links:** the URL keeps the dataset, view, area, selected tech and search, for example `#ds=vanilla&view=graph&tech=tech_destroyers`.
 - **Your own data:** "Open file…" loads a `techs.json` you generated, such as your own playset. The file stays in your browser.
 

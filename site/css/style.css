@@ -229,6 +229,7 @@ select { max-width: 260px; }
 .flag.dangerous { color: var(--danger); }
 .flag.event { color: var(--event); }
 .flag.start { color: var(--start); }
+.flag.start.cond { border-style: dashed; }
 .flag.repeatable { color: var(--repeat); }
 .flag.insight { color: var(--insight); }
 .flag.gateway { color: var(--accent); }
@@ -349,6 +350,7 @@ select { max-width: 260px; }
 .dot.dangerous { color: var(--danger); }
 .dot.event { color: var(--event); }
 .dot.start { color: var(--start); }
+.dot.start.cond { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
 .dot.repeatable { color: var(--repeat); }
 .dot.insight { color: var(--insight); }
 .node.dim { opacity: 0.18; }

@@ -110,7 +110,7 @@
       el(
         "div",
         { class: "flags" },
-        ST.flags(t).map(function (f) { return el("span", { class: "flag " + f[0] }, f[1]); }),
+        ST.flags(t).map(function (f) { return el("span", { class: "flag " + f[0], title: f[2] }, f[1]); }),
         t.gateway ? el("span", { class: "flag gateway", title: "Gateway technology" }, "Gateway: " + ST.humanize(t.gateway)) : null
       )
     );
@@ -134,6 +134,13 @@
     var body = [
       t.description ? el("p", { class: "d-desc" }, t.description) : null,
       stats,
+      t.is_start_tech && !ST.startsForAll(t)
+        ? section(
+            "Starting tech only when",
+            el("div", null, ST.startConditions(t).map(triggerTree)),
+            t.starting_potential && t.potential ? el("span", { class: "h-note" }, "all of these") : null
+          )
+        : null,
       section(
         "Requires",
         direct
@@ -178,7 +185,6 @@
           )
         : null,
       t.potential ? section("Available when", triggerTree(t.potential)) : null,
-      t.starting_potential ? section("Starting tech when", triggerTree(t.starting_potential)) : null,
       t.weight_modifiers && t.weight_modifiers.length ? section("Weight modifiers", modifiers(t.weight_modifiers)) : null,
       t.cost_modifiers && t.cost_modifiers.length ? section("Cost modifiers", modifiers(t.cost_modifiers)) : null,
       t.swaps && t.swaps.length
