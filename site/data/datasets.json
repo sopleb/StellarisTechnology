@@ -1,0 +1,12 @@
+[
+  {
+    "id": "vanilla",
+    "label": "Vanilla v4.5.2",
+    "file": "vanilla.json"
+  },
+  {
+    "id": "gigastructures",
+    "label": "GigaStructures v4.5.2",
+    "file": "gigastructures.json"
+  }
+]

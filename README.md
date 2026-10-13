@@ -94,6 +94,24 @@ A `Trigger` node looks like this:
 
 `AND`, `OR`, `NOT`, `NOR` and `NAND` get generic wording. Other keys use the localisation key `trigger_<key>` if it exists, otherwise the key is humanized (`has_ethic` → "Has ethic"). Values are localised when a matching key exists, so `has_technology = tech_x` renders with the tech's name.
 
+## Viewer
+
+`site/` is a static viewer for `techs.json`. It has no build step and no dependencies, apart from optional Google Fonts. It's meant for GitHub Pages and also works in the Steam overlay browser.
+
+- **Cards:** techs grouped by area and tier.
+- **Graph:** prerequisite chains laid out left to right, with pan and zoom (drag, wheel, pinch, arrow keys and `+`/`-`/`0`). Selecting a tech highlights everything it needs (teal) and everything it leads to (amber).
+- **Detail panel:** cost, weight, prerequisites with the full chain and its total research, unlocks, empire requirements, condition trees, weight and cost modifiers, and variants.
+- **Search and filters:** search matches names, keys and unlock names. `/` focuses the search box, and Enter jumps to the first match. You can filter by tier, category, rare/dangerous/starting/insight, event techs, repeatables and source mod.
+- **Shareable links:** the dataset, view, area, selected tech and search are all kept in the URL, for example `#ds=vanilla&view=graph&tech=tech_destroyers`.
+- **Your own data:** "Open file…" loads any `techs.json` you generated yourself, including your own playset, without uploading it anywhere.
+
+```sh
+scripts/build-site-data.sh                 # regenerate site/data/*.json + datasets.json from the local install
+python3 -m http.server -d site 8000        # preview at http://localhost:8000
+```
+
+To add a dataset, append a `gen <id> <label> <args…>` line to `scripts/build-site-data.sh`. `.github/workflows/pages.yml` publishes `site/` on every push to `main` that touches it. In the repository settings, set Pages → Source to "GitHub Actions".
+
 ## Development
 
 ```sh
