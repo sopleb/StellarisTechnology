@@ -1,0 +1,2 @@
+# scripted_variables is FIOS: vanilla's @tier1cost = 1000 keeps its value.
+@tier1cost = 9999

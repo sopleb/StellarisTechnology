@@ -33,7 +33,11 @@ Use `--game` to point at a game folder yourself. `--user-dir` sets the Paradox u
 
 - **Layer order:** vanilla first, then the playset mods in launcher order, then each `--mod` in the order you gave them.
 - **Files:** a file in a later layer replaces the earlier file at the same relative path. A descriptor's `replace_path="common/x"` hides every earlier layer's files under `common/x`.
-- **Load order inside a folder:** the tool merges files from all layers and loads them by file name. When two files define the same tech key, the one loaded last wins, and its `source` names that layer.
+- **Load order inside a folder:** the tool merges files from all layers and loads them in ASCII order of file name, as the game does.
+- **Duplicate keys:** when two files define the same key, the folder decides which one counts. The rules come from the "Overwriting specific elements" table on the [Stellaris wiki's Modding page](https://stellaris.paradoxwikis.com/Modding). The game doesn't document them, and the wiki last checked them on 2.5.
+  - **Last definition wins (LIOS):** `technology`, `buildings`, `scripted_triggers` and most other folders. A tech's `source` names the layer whose definition won. If the winning tech has no `potential` block, it keeps the one from the tech it replaced, as the game does.
+  - **First definition wins (FIOS):** `component_templates`, `section_templates`, `component_sets`, `global_ship_designs`, `special_projects`, `scripted_variables` and a few others. A mod that redefines `SENSOR_1` in `PrimPlayers_00_utilities_sensors.txt` loses to vanilla's `00_utilities_sensors.txt`, because `0` sorts before `P`.
+  - **Both stay (DUPL):** `traits`, `strategic_resources` and `name_lists`. The tool merges both definitions' unlocks.
 - **Localisation:** the tool loads each layer's `*_l_<lang>.yml` files in layer order, then applies files under any `replace/` folder last.
 - **`inline_script`:** the tool expands inline scripts, including parameters, `$P|default$` defaults and computed script names such as `case_@[ x ]`.
 - **Unknown prerequisites:** a prerequisite that names a missing tech, such as one from a mod you didn't load, goes into `meta.warnings`. The run carries on.

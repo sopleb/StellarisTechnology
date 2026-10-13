@@ -144,6 +144,44 @@ fn object_redefined_in_other_file_moves_unlock() {
 }
 
 #[test]
+fn duplicate_keys_follow_folder_rules() {
+    let base = run(&[], "english");
+    let o = run(&["mod_c"], "english");
+    let l2 = tech(&o, "tech_lasers_2");
+
+    // technology is LIOS: the mod's definition wins...
+    assert_eq!((l2.cost, l2.source.as_str()), (Some(4321.0), "Mod C"));
+    // ...but it has no potential, so it keeps vanilla's.
+    assert_eq!(l2.potential, tech(&base, "tech_lasers_2").potential);
+    assert!(l2.potential.is_some());
+    assert_eq!(l2.requires, tech(&base, "tech_lasers_2").requires);
+
+    // component_templates is FIOS: vanilla's SMALL_BLUE_LASER (first file) keeps its prerequisite.
+    assert!(l2.unlocks.iter().any(|u| u.key == "SMALL_BLUE_LASER"));
+    assert!(
+        !tech(&o, "tech_lasers_1")
+            .unlocks
+            .iter()
+            .any(|u| u.key == "SMALL_BLUE_LASER")
+    );
+}
+
+#[test]
+fn scripted_variables_first_definition_wins() {
+    let o = run(&["mod_c"], "english");
+    // tech_secret is untouched; anything using @tier1cost would still see 1000.
+    let mut v = stellaris_tech::vars::Vars::default();
+    let mut src = GameSource::new(fixtures().join("game"));
+    src.push(layer_from_dir(&fixtures().join("mod_c"), None).unwrap());
+    for f in src.files("common/scripted_variables", "txt") {
+        let text = std::fs::read_to_string(&f.path).unwrap();
+        v.add_first_from(&stellaris_tech::script::parse(&text).0);
+    }
+    assert_eq!(v.number("@tier1cost"), Some(1000.0));
+    assert!(o.techs.iter().all(|t| t.cost != Some(9999.0)));
+}
+
+#[test]
 fn other_language() {
     let o = run(&[], "german");
     assert_eq!(o.meta.language, "german");

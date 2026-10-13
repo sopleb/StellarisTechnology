@@ -19,6 +19,16 @@ impl Vars {
         }
     }
 
+    /// Like [`add_from`](Self::add_from), but a variable that already exists keeps its value.
+    /// `common/scripted_variables` works this way (first definition wins).
+    pub fn add_first_from(&mut self, block: &Block) {
+        for p in block.pairs() {
+            if let (Some(name), Some(v)) = (p.key.strip_prefix('@'), p.value.as_str()) {
+                self.map.entry(name.to_string()).or_insert_with(|| v.to_string());
+            }
+        }
+    }
+
     /// A copy with `block`'s own variables layered on top.
     pub fn with_file(&self, block: &Block) -> Vars {
         let mut v = self.clone();

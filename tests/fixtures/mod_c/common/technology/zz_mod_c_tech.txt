@@ -1,0 +1,10 @@
+# technology is LIOS: this replaces vanilla's tech_lasers_2, but with no potential block
+# the game keeps the overridden tech's potential.
+tech_lasers_2 = {
+	cost = 4321
+	area = physics
+	tier = 1
+	category = { particles }
+	prerequisites = { "tech_lasers_1" }
+	weight = 10
+}

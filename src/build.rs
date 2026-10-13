@@ -22,6 +22,54 @@ const SKIP_UNLOCK_DIRS: &[&str] = &[
     "common/on_actions",
 ];
 
+/// How the game resolves two definitions of the same key in a `common/` folder.
+/// Files load in ASCII order of their names (a same-named file in a later mod replaces the
+/// earlier file outright). Source: the Stellaris wiki's Modding page, "Overwriting specific
+/// elements" table. The game doesn't document this, and the table was last checked on 2.5.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DupRule {
+    /// First In, Only Served: the first definition loaded wins.
+    Fios,
+    /// Last In, Only Served: the last definition loaded wins. Most folders work this way.
+    Lios,
+    /// Both definitions stay in the game.
+    Dupl,
+}
+
+/// `dir` is the path below `common/`, e.g. `component_templates` or `governments/authorities`.
+pub fn dup_rule(dir: &str) -> DupRule {
+    const FIOS: &[&str] = &[
+        "component_sets",
+        "component_templates",
+        "event_chains",
+        "global_ship_designs",
+        "governments/authorities",
+        "scripted_loc",
+        "scripted_variables",
+        "section_templates",
+        "ship_behaviors",
+        "solar_system_initializers",
+        "special_projects",
+        "start_screen_messages",
+    ];
+    const DUPL: &[&str] = &[
+        "inline_scripts",
+        "name_lists",
+        "strategic_resources",
+        "terraform",
+        "traits",
+    ];
+    let dir = dir.trim_end_matches('/');
+    let is = |list: &[&str]| list.iter().any(|d| dir == *d || dir.starts_with(&format!("{d}/")));
+    if is(FIOS) {
+        DupRule::Fios
+    } else if is(DUPL) {
+        DupRule::Dupl
+    } else {
+        DupRule::Lios
+    }
+}
+
 /// Localisation key prefixes tried when naming objects from a `common/` folder.
 const NAME_PREFIXES: &[(&str, &str)] = &[
     ("starbase_modules", "sm_"),
@@ -79,7 +127,7 @@ pub fn build(input: BuildInput) -> Output {
 
     let mut vars = Vars::default();
     for f in src.files("common/scripted_variables", "txt") {
-        vars.add_from(&read(&f));
+        vars.add_first_from(&read(&f));
     }
 
     let mut scripted = HashMap::new();
@@ -108,10 +156,15 @@ pub fn build(input: BuildInput) -> Output {
             if p.key.starts_with('@') {
                 continue;
             }
-            let tech = extract_tech(&p.key, body, &fvars, &ctx, src.layer_name(f.layer), &f.rel);
+            let mut tech = extract_tech(&p.key, body, &fvars, &ctx, src.layer_name(f.layer), &f.rel);
             match index.get(&p.key) {
                 Some(&i) => {
                     log::debug!("{} overridden by {} ({})", p.key, tech.file, tech.source);
+                    // The game keeps the overridden tech's `potential` when the override has none.
+                    if body.get("potential").is_none() {
+                        tech.potential = techs[i].potential.take();
+                        tech.requires = std::mem::take(&mut techs[i].requires);
+                    }
                     techs[i] = tech;
                 }
                 None => {
@@ -499,11 +552,11 @@ type ObjectEntry = (String, Vec<String>);
 
 /// Scan every `common/**` object for `prerequisites`/`show_in_tech` naming a tech.
 fn scan_unlocks(src: &GameSource, loc: &Localisation, techs: &mut [Tech], index: &HashMap<String, usize>) {
-    // (folder, object key) → (display name, tech keys); a later definition replaces an earlier one,
-    // mirroring how the game overrides objects redefined in another file.
+    // (folder, object key) → (display name, tech keys). A key defined twice resolves by the
+    // folder's [`dup_rule`]: the first or last definition wins, or both stay.
     let mut objects: Vec<(ObjectId, ObjectEntry)> = Vec::new();
     let mut slot: HashMap<ObjectId, usize> = HashMap::new();
-    let mut record = |folder: &str, key: &str, body: &Block| {
+    let mut record = |folder: &str, rule: DupRule, key: &str, body: &Block| {
         let id = (folder.to_string(), key.to_string());
         let targets = object_targets(body);
         let name = if targets.is_empty() {
@@ -511,12 +564,23 @@ fn scan_unlocks(src: &GameSource, loc: &Localisation, techs: &mut [Tech], index:
         } else {
             object_name(folder, key, loc)
         };
-        let entry = (name, targets);
-        match slot.get(&id) {
-            Some(&i) => objects[i].1 = entry,
-            None => {
+        match (slot.get(&id), rule) {
+            (Some(_), DupRule::Fios) => {}
+            (Some(&i), DupRule::Lios) => objects[i].1 = (name, targets),
+            (Some(&i), DupRule::Dupl) => {
+                let e = &mut objects[i].1;
+                if e.0.is_empty() {
+                    e.0 = name;
+                }
+                for t in targets {
+                    if !e.1.contains(&t) {
+                        e.1.push(t);
+                    }
+                }
+            }
+            (None, _) => {
                 slot.insert(id.clone(), objects.len());
-                objects.push((id, entry));
+                objects.push((id, (name, targets)));
             }
         }
     };
@@ -528,14 +592,15 @@ fn scan_unlocks(src: &GameSource, loc: &Localisation, techs: &mut [Tech], index:
         if !f.rel[7..].contains('/') {
             continue; // files directly in common/ are not object folders
         }
+        let rule = dup_rule(f.rel[7..].rsplit_once('/').map_or("", |(d, _)| d));
         let block = read(&f);
         for p in block.pairs() {
             let Some(body) = p.value.as_block() else { continue };
             let key = body.get_str("key").unwrap_or(&p.key);
-            record(&folder, key, body);
+            record(&folder, rule, key, body);
             for opt in body.get_all("option").filter_map(|o| o.value.as_block()) {
                 if let Some(n) = opt.get_str("name") {
-                    record(&folder, n, opt);
+                    record(&folder, rule, n, opt);
                 }
             }
         }
@@ -583,6 +648,18 @@ fn dedup(v: &mut Vec<Unlock>) {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn duplicate_rules_by_folder() {
+        assert_eq!(dup_rule("technology"), DupRule::Lios);
+        assert_eq!(dup_rule("buildings"), DupRule::Lios);
+        assert_eq!(dup_rule("component_templates"), DupRule::Fios);
+        assert_eq!(dup_rule("scripted_variables"), DupRule::Fios);
+        assert_eq!(dup_rule("governments/authorities"), DupRule::Fios);
+        assert_eq!(dup_rule("governments"), DupRule::Lios);
+        assert_eq!(dup_rule("traits"), DupRule::Dupl);
+        assert_eq!(dup_rule("component_templates_extra"), DupRule::Lios);
+    }
 
     #[test]
     fn prerequisite_or_groups() {

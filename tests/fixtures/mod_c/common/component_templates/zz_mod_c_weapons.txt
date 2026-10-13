@@ -1,0 +1,5 @@
+# component_templates is FIOS: vanilla's 00_weapons.txt loads first, so this copy is ignored.
+weapon_component_template = {
+	key = "SMALL_BLUE_LASER"
+	prerequisites = { "tech_lasers_1" }
+}

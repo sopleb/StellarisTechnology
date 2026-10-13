@@ -41,7 +41,7 @@ The 4 warnings come from GigaStructures prerequisites that name ACOT techs. ACOT
 
 ## Known gaps and judgement calls
 - **Weaver and biogenesis techs:** about 40 of them list no unlocks. The game grants them through scripted effects (`give_technology`, `add_research_option`), and the scan only follows `prerequisites`.
-- **Duplicate tech or object keys across files:** the definition loaded last (by file name) wins. The Java tool does the same, and it matches the usual "last in, only served" behaviour. I haven't checked each object type against the game.
+- **Duplicate tech or object keys across files:** the tool follows the per-folder rules from the Stellaris wiki's "Overwriting specific elements" table (see the README). Techs and most folders use last-wins, component and section templates and scripted variables use first-wins, and traits keep both. The wiki last verified the table on 2.5 and the game doesn't document it, so a patch could change it. On this machine the rules change nothing for vanilla or GigaStructures. In the 36-mod playset they restore vanilla's "not nomadic" condition on 8 techs that "Ethics and Civics Classic" redefines without a `potential`, and drop that mod's `SENSOR_1` prerequisite, which the game ignores.
 - **Localisation outside `replace/`:** a mod's localisation also overrides vanilla keys, because the later layer wins.
 - **Trigger text:** the wording stays generic ("Has ethic: Militarist", "NOT: Is gestalt"). The Java tool used hand-written English. The JSON keeps the full tree, so a viewer can word it differently.
 - **`is_event`:** a heuristic. A tech counts as an event tech when it is neither a start tech nor repeatable, and one of these holds:
