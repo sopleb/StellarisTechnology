@@ -241,7 +241,7 @@ pub fn build(input: BuildInput) -> Output {
         .iter()
         .map(|l| ModInfo {
             name: l.name.clone(),
-            path: l.root.display().to_string(),
+            path: home_relative(&l.root),
             remote_id: l.remote_id.clone(),
         })
         .collect();
@@ -260,6 +260,15 @@ pub fn build(input: BuildInput) -> Output {
         categories,
         tiers,
         techs,
+    }
+}
+
+/// `/home/me/.local/...` → `~/.local/...`, so published output doesn't carry the user's name.
+fn home_relative(p: &std::path::Path) -> String {
+    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"));
+    match home.and_then(|h| p.strip_prefix(&h).ok().map(|r| r.to_path_buf())) {
+        Some(rest) => format!("~/{}", rest.display()),
+        None => p.display().to_string(),
     }
 }
 

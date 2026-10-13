@@ -157,7 +157,7 @@
       );
     }
     bits.push(el("span", { class: "gen" }, meta.generator || ""));
-    bits.push(el("a", { href: "https://github.com/sopleb/stellaris-tech-rs", target: "_blank", rel: "noopener" }, "Source"));
+    bits.push(el("a", { href: "https://github.com/sopleb/StellarisTechnology", target: "_blank", rel: "noopener" }, "Source"));
     foot.appendChild(el("div", { class: "meta-row" }, bits));
   }
 
