@@ -20,9 +20,9 @@
   --down: #ffa36b;
   --radius: 8px;
   --shadow: 0 8px 30px rgb(0 0 0 / 0.45);
-  --font: Inter, "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-  --display: "Exo 2", var(--font);
-  --mono: ui-monospace, "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
+  --font: Lilex, ui-monospace, "Cascadia Mono", Consolas, "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --display: var(--font);
+  --mono: Lilex, ui-monospace, "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
   --detail-w: 400px;
   color-scheme: dark;
 }
@@ -38,7 +38,7 @@ body {
     radial-gradient(900px 500px at -10% 110%, rgb(78 168 255 / 0.07), transparent 60%),
     var(--bg);
   color: var(--text);
-  font: 14px/1.45 var(--font);
+  font: 13.5px/1.45 var(--font);
   overflow: hidden;
 }
 button, input, select { font: inherit; color: inherit; }
@@ -263,7 +263,7 @@ select { max-width: 260px; }
 }
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 8px;
 }
 .card {
@@ -286,7 +286,7 @@ select { max-width: 260px; }
 .card.rare { background: linear-gradient(135deg, color-mix(in srgb, var(--rare) 12%, var(--panel)), var(--bg-2)); }
 .card.dangerous { background: linear-gradient(135deg, color-mix(in srgb, var(--danger) 12%, var(--panel)), var(--bg-2)); }
 .card.event { border-style: dashed; border-left-style: solid; }
-.c-name { font-family: var(--display); font-weight: 600; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-name { font-family: var(--display); font-weight: 600; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .c-sub { display: flex; gap: 8px; font-size: 12px; color: var(--muted); }
 .c-cost { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--text); opacity: 0.8; }
 .c-flags { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -337,7 +337,7 @@ select { max-width: 260px; }
 .node.dangerous { background: linear-gradient(135deg, color-mix(in srgb, var(--danger) 18%, var(--panel-2)), var(--panel)); }
 .node.event { border-style: dashed; border-left-style: solid; }
 .node.repeatable { border-left-style: double; }
-.n-name { font-family: var(--display); font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.n-name { font-family: var(--display); font-weight: 600; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .n-sub { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
 .n-tier { font-weight: 700; color: var(--area); }
 .n-cost { font-variant-numeric: tabular-nums; }

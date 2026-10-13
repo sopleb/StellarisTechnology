@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   var ST = window.ST, el = ST.el;
-  var NODE_W = 212, NODE_H = 52, COL_GAP = 96, ROW_GAP = 12, PAD = 48;
+  var NODE_W = 240, NODE_H = 52, COL_GAP = 96, ROW_GAP = 12, PAD = 48;
   var ROW = NODE_H + ROW_GAP;
   var GAP = 56, BPAD = 18, LABEL_H = 22;
   var SVGNS = "http://www.w3.org/2000/svg";
