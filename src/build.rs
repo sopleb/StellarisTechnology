@@ -129,7 +129,7 @@ pub fn build(input: BuildInput) -> Output {
         dedup(&mut t.unlocks);
     }
     for t in &techs {
-        for p in &t.prerequisites {
+        for p in t.prerequisites.iter().chain(t.prerequisite_groups.iter().flatten()) {
             if !index.contains_key(p) {
                 warnings.push(format!("{}: unknown prerequisite {p}", t.key));
             }
@@ -192,6 +192,35 @@ pub fn build(input: BuildInput) -> Output {
         tiers,
         techs,
     }
+}
+
+/// Split `prerequisites = { a OR = { b c } }` into required techs and "one of" groups.
+/// Nested `AND` blocks count as required; anything else inside a group is flattened into it.
+pub fn prereq_parts(b: &Block) -> (Vec<String>, Vec<Vec<String>>) {
+    let Some(Value::Block(l)) = b.get("prerequisites") else {
+        return (str_list(b, "prerequisites"), vec![]);
+    };
+    fn flat(b: &Block, out: &mut Vec<String>) {
+        out.extend(b.bare_strings());
+        for p in b.pairs() {
+            if let Value::Block(c) = &p.value {
+                flat(c, out);
+            }
+        }
+    }
+    let mut all = l.bare_strings();
+    let mut groups = Vec::new();
+    for p in l.pairs() {
+        let Value::Block(c) = &p.value else { continue };
+        let mut g = Vec::new();
+        flat(c, &mut g);
+        if p.key.eq_ignore_ascii_case("AND") {
+            all.extend(g);
+        } else if !g.is_empty() {
+            groups.push(g);
+        }
+    }
+    (all, groups)
 }
 
 fn str_list(b: &Block, key: &str) -> Vec<String> {
@@ -329,7 +358,8 @@ pub fn extract_tech(key: &str, b: &Block, vars: &Vars, ctx: &TriggerCtx, source:
         is_reverse_engineerable: b.get_bool("is_reverse_engineerable"),
         is_event,
         gateway: b.get_str("gateway").map(str::to_string),
-        prerequisites: str_list(b, "prerequisites"),
+        prerequisites: prereq_parts(b).0,
+        prerequisite_groups: prereq_parts(b).1,
         unlocks,
         requires,
         potential: potential.and_then(|p| ctx.block(p)),
@@ -525,7 +555,8 @@ fn scan_unlocks(src: &GameSource, loc: &Localisation, techs: &mut [Tech], index:
 
 /// Tech keys an object points at via `prerequisites` / `show_in_tech`.
 fn object_targets(body: &Block) -> Vec<String> {
-    let mut targets = str_list(body, "prerequisites");
+    let (mut targets, groups) = prereq_parts(body);
+    targets.extend(groups.into_iter().flatten());
     if let Some(s) = body.get_str("show_in_tech") {
         targets.push(s.to_string());
     }
@@ -552,6 +583,15 @@ fn dedup(v: &mut Vec<Unlock>) {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn prerequisite_or_groups() {
+        let (b, _) =
+            crate::script::parse("prerequisites = { tech_a OR = { tech_b tech_c } AND = { tech_d } OR = { tech_e } }");
+        let (all, groups) = prereq_parts(&b);
+        assert_eq!(all, ["tech_a", "tech_d"]);
+        assert_eq!(groups, vec![vec!["tech_b", "tech_c"], vec!["tech_e"]]);
+    }
     use super::*;
 
     #[test]

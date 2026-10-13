@@ -126,12 +126,9 @@
       el("div", null, el("dt", null, "Weight"), el("dd", null, ST.fmtNum(t.base_weight), t.weight_factor != null ? el("small", null, "× " + ST.fmtNum(t.weight_factor)) : null))
     );
 
-    var anc = ST.ancestors(model, t.key);
-    var pathCost = 0;
-    anc.forEach(function (k) {
-      var a = model.byKey.get(k);
-      if (a && a.cost && !a.is_start_tech) pathCost += a.cost;
-    });
+    var path = ST.cheapestChain(model, t.key);
+    var groups = t.prerequisite_groups || [];
+    var direct = (t.prerequisites || []).length + groups.length;
     var deps = model.dependents.get(t.key) || [];
 
     var body = [
@@ -139,11 +136,29 @@
       stats,
       section(
         "Requires",
-        t.prerequisites && t.prerequisites.length
-          ? el("div", { class: "chips" }, t.prerequisites.map(function (k) { return techLink(model, k, onSelect); }))
+        direct
+          ? el(
+              "div",
+              { class: "prereqs" },
+              (t.prerequisites || []).length
+                ? el("div", { class: "chips" }, t.prerequisites.map(function (k) { return techLink(model, k, onSelect); }))
+                : null,
+              groups.map(function (g) {
+                return el(
+                  "div",
+                  { class: "one-of" },
+                  el("span", { class: "one-of-label" }, (t.prerequisites || []).length ? "and one of" : "One of"),
+                  el("div", { class: "chips" }, g.map(function (k) { return techLink(model, k, onSelect); }))
+                );
+              })
+            )
           : el("div", { class: "muted" }, "No prerequisites"),
-        anc.size > (t.prerequisites || []).length
-          ? el("span", { class: "h-note" }, anc.size + " techs in the full chain · " + ST.fmtNum(pathCost) + " research")
+        path.techs.size > direct
+          ? el(
+              "span",
+              { class: "h-note", title: groups.length ? "Taking the cheapest option of each “one of” choice" : null },
+              path.techs.size + " techs in the full chain · " + ST.fmtNum(path.cost) + " research" + (groups.length ? " (cheapest)" : "")
+            )
           : null
       ),
       deps.length

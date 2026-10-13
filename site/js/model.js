@@ -12,7 +12,7 @@
     var dependents = new Map();
     techs.forEach(function (t) { dependents.set(t.key, []); });
     techs.forEach(function (t) {
-      (t.prerequisites || []).forEach(function (p) {
+      ST.prereqKeys(t).forEach(function (p) {
         if (dependents.has(p)) dependents.get(p).push(t.key);
       });
     });
@@ -93,8 +93,59 @@
   ST.ancestors = function (model, key) {
     return walk(model, key, function (k) {
       var t = model.byKey.get(k);
-      return t ? (t.prerequisites || []).filter(function (p) { return model.byKey.has(p); }) : [];
+      return t ? ST.prereqKeys(t).filter(function (p) { return model.byKey.has(p); }) : [];
     });
+  };
+
+  // Every tech a prerequisite links to: required ones plus all "one of" alternatives.
+  ST.prereqKeys = function (t) {
+    var out = (t.prerequisites || []).slice();
+    (t.prerequisite_groups || []).forEach(function (g) {
+      g.forEach(function (k) { if (out.indexOf(k) < 0) out.push(k); });
+    });
+    return out;
+  };
+
+  // The cheapest set of techs needed before `key`: required prerequisites, plus the
+  // cheapest option of each "one of" group, recursively.
+  ST.cheapestChain = function (model, key) {
+    var memo = new Map();
+    function cost(set) {
+      var c = 0;
+      set.forEach(function (k) {
+        var t = model.byKey.get(k);
+        if (t && t.cost && !t.is_start_tech) c += t.cost;
+      });
+      return c;
+    }
+    function chain(k, stack) {
+      if (memo.has(k)) return memo.get(k);
+      var t = model.byKey.get(k), out = new Set();
+      if (!t || stack.has(k)) return out;
+      stack.add(k);
+      function take(p) {
+        if (!model.byKey.has(p)) return;
+        out.add(p);
+        chain(p, stack).forEach(function (x) { out.add(x); });
+      }
+      (t.prerequisites || []).forEach(take);
+      (t.prerequisite_groups || []).forEach(function (g) {
+        var best = null, bestCost = Infinity;
+        g.forEach(function (p) {
+          if (!model.byKey.has(p)) return;
+          var s = new Set(chain(p, stack));
+          s.add(p);
+          var c = cost(s);
+          if (c < bestCost) { best = p; bestCost = c; }
+        });
+        if (best) take(best);
+      });
+      stack.delete(k);
+      memo.set(k, out);
+      return out;
+    }
+    var set = chain(key, new Set());
+    return { techs: set, cost: cost(set) };
   };
 
   ST.descendants = function (model, key) {

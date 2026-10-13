@@ -61,7 +61,8 @@ $B -v / -vv                          # info / debug logging (RUST_LOG also works
     "is_insight": false, "is_reverse_engineerable": null,
     "is_event": false,                    // never drawn randomly (weight 0 / factor 0 / always-0 modifier)
     "gateway": null,
-    "prerequisites": ["tech_lasers_1"],
+    "prerequisites": ["tech_lasers_1"],     // all required
+    "prerequisite_groups": [["tech_battleships", "tech_stinger_growth_2"]], // OR = {} groups: one of each; omitted when empty
     "unlocks": [{ "kind": "component_templates", "key": "SMALL_BLUE_LASER", "name": "Small Blue Laser" }],
     "requires": { "is_gestalt": false },  // top-level yes/no conditions of `potential`
     "potential": Trigger | null,

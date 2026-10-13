@@ -6,6 +6,9 @@
   function card(model, t, onSelect) {
     var cats = (t.category || []).map(function (c) { return model.catName.get(c) || c; }).join(", ");
     var pre = (t.prerequisites || []).map(function (k) { return ST.techName(model, k); });
+    (t.prerequisite_groups || []).forEach(function (g) {
+      pre.push(g.map(function (k) { return ST.techName(model, k); }).join(" or "));
+    });
     return el(
       "button",
       {

@@ -22,7 +22,7 @@
     var inSet = new Set(list.map(function (t) { return t.key; }));
     var parents = new Map(), kids = new Map();
     list.forEach(function (t) {
-      parents.set(t.key, (t.prerequisites || []).filter(function (p) { return inSet.has(p) && p !== t.key; }));
+      parents.set(t.key, ST.prereqKeys(t).filter(function (p) { return inSet.has(p) && p !== t.key; }));
       kids.set(t.key, []);
     });
     list.forEach(function (t) { parents.get(t.key).forEach(function (p) { kids.get(p).push(t.key); }); });
@@ -74,7 +74,11 @@
       b.nodes.forEach(function (n) { nodes.push({ key: n.key, x: b.x + n.x, y: b.y + n.y }); });
     });
     var edges = [];
-    list.forEach(function (t) { parents.get(t.key).forEach(function (p) { edges.push({ from: p, to: t.key }); }); });
+    list.forEach(function (t) {
+      parents.get(t.key).forEach(function (p) {
+        edges.push({ from: p, to: t.key, alt: (t.prerequisites || []).indexOf(p) < 0 });
+      });
+    });
     return {
       nodes: nodes,
       edges: edges,
@@ -219,14 +223,14 @@
       var p = document.createElementNS(SVGNS, "path");
       p.setAttribute("d", "M" + x1 + " " + y1 + "C" + (x1 + dx) + " " + y1 + " " + (x2 - dx) + " " + y2 + " " + x2 + " " + y2);
       svg.appendChild(p);
-      return { from: e.from, to: e.to, el: p };
+      return { from: e.from, to: e.to, alt: e.alt, el: p };
     });
 
     var nodeEls = new Map();
     var nodesLayer = el("div", { class: "nodes" });
     lay.nodes.forEach(function (n) {
       var t = model.byKey.get(n.key);
-      var external = (t.prerequisites || []).filter(function (p) { return !pos.has(p); }).length;
+      var external = ST.prereqKeys(t).filter(function (p) { return !pos.has(p); }).length;
       var flags = ST.flags(t);
       var node = el(
         "div",
@@ -382,7 +386,7 @@
       edgeEls.forEach(function (e) {
         var onAnc = anc && (anc.has(e.to) || e.to === sel) && anc.has(e.from);
         var onDesc = desc && (desc.has(e.from) || e.from === sel) && desc.has(e.to);
-        e.el.setAttribute("class", onAnc ? "anc" : onDesc ? "desc" : "");
+        e.el.setAttribute("class", (onAnc ? "anc" : onDesc ? "desc" : "") + (e.alt ? " alt" : ""));
       });
     }
 

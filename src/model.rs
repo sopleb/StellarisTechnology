@@ -119,6 +119,9 @@ pub struct Tech {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gateway: Option<String>,
     pub prerequisites: Vec<String>,
+    /// `OR = { a b }` groups inside `prerequisites`: one tech from each group is needed too.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub prerequisite_groups: Vec<Vec<String>>,
     pub unlocks: Vec<Unlock>,
     /// Top-level yes/no conditions of `potential`, e.g. `{"is_gestalt": false}`.
     pub requires: BTreeMap<String, bool>,

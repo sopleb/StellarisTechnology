@@ -312,6 +312,7 @@ select { max-width: 260px; }
 .edges text { fill: var(--faint); font: 600 11px var(--font); letter-spacing: 0.08em; text-transform: uppercase; }
 .edges path { fill: none; stroke: #3a5078; stroke-width: 1.4; opacity: 0.75; }
 .world.focus .edges path { opacity: 0.18; }
+.edges path.alt { stroke-dasharray: 6 4; }
 .world.focus .edges path.anc { stroke: var(--accent); stroke-width: 2.4; opacity: 1; }
 .world.focus .edges path.desc { stroke: #e0a85a; stroke-width: 2; opacity: 0.9; }
 .nodes { position: absolute; left: 0; top: 0; }
@@ -424,6 +425,9 @@ select { max-width: 260px; }
   gap: 4px 10px;
 }
 .h-note { font-size: 11px; text-transform: none; letter-spacing: 0; color: var(--faint); font-weight: 400; }
+.prereqs { display: flex; flex-direction: column; gap: 8px; }
+.one-of { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border: 1px dashed var(--line-2); border-radius: 6px; }
+.one-of-label { font-size: 11px; color: var(--muted); }
 .unlocks { display: flex; flex-direction: column; gap: 10px; }
 .ukind { font-size: 11px; color: var(--area); font-weight: 600; margin-bottom: 3px; }
 .unlocks ul { margin: 0; padding-left: 16px; }
