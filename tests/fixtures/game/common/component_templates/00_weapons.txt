@@ -1,0 +1,4 @@
+weapon_component_template = {
+	key = "SMALL_BLUE_LASER"
+	prerequisites = { "tech_lasers_2" }
+}

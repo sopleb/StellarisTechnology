@@ -1,0 +1,1 @@
+building_lab = { prerequisites = { tech_lasers_1 } }

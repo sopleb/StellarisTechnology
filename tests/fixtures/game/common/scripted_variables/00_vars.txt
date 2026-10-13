@@ -1,0 +1,2 @@
+@tier1cost = 1000
+@tier1weight = 50

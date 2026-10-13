@@ -45,6 +45,19 @@ impl GameSource {
         &self.layers[idx].name
     }
 
+    /// The winning file for a relative path (`/`-separated), honouring layer order.
+    pub fn find(&self, rel: &str) -> Option<SourceFile> {
+        let rel = rel.trim_matches('/');
+        let dir = rel.rsplit_once('/').map_or("", |(d, _)| d);
+        (0..self.layers.len()).rev().find_map(|idx| {
+            let hidden = self.layers[idx + 1..]
+                .iter()
+                .any(|l| l.replace_paths.iter().any(|h| dir == h.trim_matches('/') || dir.starts_with(&format!("{}/", h.trim_matches('/')))));
+            let p = self.layers[idx].root.join(rel);
+            (!hidden && p.is_file()).then(|| SourceFile { rel: rel.to_string(), path: p, layer: idx })
+        })
+    }
+
     /// Files directly inside `dir` with extension `ext`, merged across layers and
     /// sorted by file name (the game's load order within a folder).
     pub fn files(&self, dir: &str, ext: &str) -> Vec<SourceFile> {

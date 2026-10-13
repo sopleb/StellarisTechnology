@@ -1,6 +1,10 @@
+pub mod build;
 pub mod discover;
+pub mod inline;
 pub mod loc;
+pub mod model;
 pub mod mods;
 pub mod script;
 pub mod source;
+pub mod trigger;
 pub mod vars;

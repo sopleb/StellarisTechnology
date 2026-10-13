@@ -1,0 +1,2 @@
+tech_lasers_1 = { area = physics tier = 0 category = { particles } start_tech = yes cost = 7 }
+tech_lasers_2 = { area = physics tier = 1 category = { particles } prerequisites = { tech_lasers_1 } cost = 99 weight = 1 }

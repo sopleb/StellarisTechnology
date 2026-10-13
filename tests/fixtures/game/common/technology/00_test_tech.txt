@@ -1,0 +1,36 @@
+@local = 3
+tech_lasers_1 = {
+	area = physics
+	tier = 0
+	category = { particles }
+	start_tech = yes
+}
+tech_lasers_2 = {
+	cost = @tier1cost
+	area = physics
+	tier = 1
+	category = { particles }
+	prerequisites = { "tech_lasers_1" }
+	weight = @tier1weight
+	potential = { is_gestalt = no NOT = { is_machine_empire = yes } }
+	modifier = { ship_weapon_damage = 0.05 custom_tooltip = lasers_tt }
+	feature_flags = { better_lasers }
+	weight_modifier = {
+		factor = @[ local * 2 ]
+		modifier = { factor = 0.5 is_friendly = yes }
+		inline_script = { script = technologies/rare TECHNOLOGY = tech_lasers_1 }
+	}
+	technology_swap = { name = tech_bio_lasers_2 trigger = { is_bio = yes } }
+}
+tech_secret = {
+	cost = { factor = 500 modifier = { factor = 0.5 always = yes } }
+	area = society
+	tier = 1
+	category = { voidcraft }
+	weight = 0
+	prerequisites = { tech_missing }
+}
+tech_repeat = {
+	cost = 1 cost_per_level = 2 levels = -1
+	area = physics tier = 1 category = { particles } weight = 5
+}

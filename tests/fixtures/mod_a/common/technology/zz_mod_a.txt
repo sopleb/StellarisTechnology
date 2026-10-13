@@ -1,0 +1,1 @@
+tech_mod_a = { area = engineering tier = 1 category = { voidcraft } cost = 5 weight = 1 prerequisites = { tech_lasers_2 } }

@@ -1,0 +1,2 @@
+particles = { icon = "x.dds" }
+voidcraft = { icon = "y.dds" }

@@ -1,0 +1,1 @@
+modifier = { factor = 2 has_technology = $TECHNOLOGY$ }
