@@ -15,7 +15,7 @@ Decisions made with the user:
 - **Triggers:** a structured tree plus a best-effort plain-text rendering.
 - **Language:** `--lang`, default `english`.
 - **Mods:** from the active Paradox launcher playset (`--playset [name]`) and/or `--mod <path>` flags.
-- **Location:** inside this repo, at `stellaris-technology/rust/`, with `git init` at `stellaris-technology/` (the Java code stays as a reference). Commits are authored as `sopleb <sopleb@pm.me>`.
+- **Location:** inside this repo, in a standalone repo at `~/localdev/projects/stellaris-technology/stellaris-tech-rs/` (the Java repo is left as a reference). Commits are authored as `sopleb <sopleb@pm.me>`.
 - **Test data:** real install, Stellaris 4.5.2 at `~/.local/share/Steam/steamapps/common/Stellaris`.
 
 Verified environment:
