@@ -15,7 +15,7 @@ Decisions made with the user:
 - **Triggers:** a structured tree plus a best-effort plain-text rendering.
 - **Language:** `--lang`, default `english`.
 - **Mods:** from the active Paradox launcher playset (`--playset [name]`) and/or `--mod <path>` flags.
-- **Location:** inside this repo, in a standalone repo at `~/localdev/projects/stellaris-technology/stellaris-tech-rs/` (the Java repo is left as a reference). Commits are authored as `sopleb <sopleb@pm.me>`.
+- **Location:** a standalone repo at `~/localdev/projects/stellaris-technology/stellaris-tech-rs/` (the Java repo is left as a reference). Commits are authored as `sopleb <sopleb@pm.me>`.
 - **Test data:** real install, Stellaris 4.5.2 at `~/.local/share/Steam/steamapps/common/Stellaris`.
 
 Verified environment:
@@ -29,7 +29,7 @@ Verified environment:
 
 ## Architecture (crate `stellaris-tech`, a binary plus a lib)
 ```
-rust/
+stellaris-tech-rs/  (originally planned as rust/; moved to its own repo at the user's request)
   Cargo.toml        deps: clap, serde, serde_json, anyhow, thiserror, rusqlite (bundled), walkdir, log/env_logger; dev: insta or pretty_assertions, tempfile
   src/main.rs       CLI only
   src/lib.rs
@@ -106,7 +106,7 @@ stellaris-tech [--game PATH] [--lang english] [--playset [NAME]] [--mod PATH...]
 9. Output assembly and CLI wiring. Then a real run, checked against the acceptance criteria.
    - Sanity check: compare tech names, prereqs and unlocks for about 10 well-known techs (`tech_lasers_2`, `tech_corvettes`, `tech_destroyers`, ...) by hand against the game files, and use the Java `output/*.json` for shape intuition.
 10. Mods: `.mod` descriptor parser, launcher sqlite playset reader (opened read-only and immutable, so a running launcher isn't disturbed), layered `GameSource`, merge rules. Fixture tests for override precedence. Then a real run with `--playset`, which uses the active "ironman" playset and includes GigaStructures 1121692237 if it's in that playset (otherwise `--mod` with its workshop path).
-11. `rust/README.md` with usage and a description of the output schema. A final `cargo clippy -- -D warnings` and `cargo fmt`, then commit.
+11. `README.md` with usage and a description of the output schema. A final `cargo clippy -- -D warnings` and `cargo fmt`, then commit.
 
 The code-review skill runs after each major phase (after 4, 9 and 10), and confirmed issues get fixed.
 
@@ -120,7 +120,7 @@ The code-review skill runs after each major phase (after 4, 9 and 10), and confi
   - categories are non-empty for every non-repeatable tech.
 - A `--playset` run exits 0 and adds techs whose `source` is the mod name. `meta.mods` lists the playset in load order.
 - A `--lang german` run produces German names.
-- A morning summary (written to `rust/NIGHTLY_REPORT.md` and given in chat) covers counts, warnings, known gaps and the commit list.
+- A morning summary (written to `NIGHTLY_REPORT.md` and given in chat) covers counts, warnings, known gaps and the commit list.
 
 ## Out of scope
 - Viewer and frontend changes.
