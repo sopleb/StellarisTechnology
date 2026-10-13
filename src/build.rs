@@ -467,6 +467,8 @@ fn bool_condition(p: &crate::script::Pair) -> Option<bool> {
 
 fn modifier_unlocks(m: &Block, loc: &Localisation, vars: &Vars) -> Vec<Unlock> {
     let mut out = Vec::new();
+    let no_params = Block::default();
+    let params = m.get_block("description_parameters").unwrap_or(&no_params);
     for p in m.pairs() {
         match p.key.as_str() {
             "custom_tooltip" | "description" => {
@@ -474,7 +476,7 @@ fn modifier_unlocks(m: &Block, loc: &Localisation, vars: &Vars) -> Vec<Unlock> {
                     out.push(Unlock {
                         kind: "tooltip".into(),
                         key: k.into(),
-                        name: vars.render_refs(&loc.name(k)),
+                        name: vars.render_refs(&vars.render_params(&loc.name(k), params)),
                     });
                 }
             }

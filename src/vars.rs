@@ -52,8 +52,35 @@ impl Vars {
             let (name, fmt) = inner.split_once('|').unwrap_or((inner, ""));
             out.push_str(&rest[..start]);
             match self.number(name) {
-                Some(n) if fmt.contains('%') => out.push_str(&format!("{}%", trim_num(n * 100.0))),
-                Some(n) => out.push_str(&trim_num(n)),
+                Some(n) => out.push_str(&format_number(n, fmt)),
+                None => out.push_str(&rest[start..start + len + 2]),
+            }
+            rest = &rest[start + len + 2..];
+        }
+        out.push_str(rest);
+        out
+    }
+
+    /// Fill `$NAME|fmt$` placeholders from a modifier's `description_parameters` block.
+    /// Values may be numbers or `@variables`; anything else is inserted as written.
+    pub fn render_params(&self, text: &str, params: &Block) -> String {
+        let mut out = String::new();
+        let mut rest = text;
+        while let Some(start) = rest.find('$') {
+            let Some(len) = rest[start + 1..].find('$') else { break };
+            let inner = &rest[start + 1..start + 1 + len];
+            let (name, fmt) = inner.split_once('|').unwrap_or((inner, ""));
+            out.push_str(&rest[..start]);
+            let param = params
+                .pairs()
+                .filter(|p| p.key.eq_ignore_ascii_case(name))
+                .last()
+                .and_then(|p| p.value.as_str());
+            match param {
+                Some(v) => match self.number(v) {
+                    Some(n) => out.push_str(&format_number(n, fmt)),
+                    None => out.push_str(v),
+                },
                 None => out.push_str(&rest[start..start + len + 2]),
             }
             rest = &rest[start + len + 2..];
@@ -198,6 +225,25 @@ fn unary(t: &[T], p: &mut usize, l: &dyn Fn(&str) -> Option<f64>) -> Option<f64>
     }
 }
 
+/// Format a number with a Paradox localisation format code (the part after `|` in `$X|fmt$`):
+/// a digit sets the decimals, `%` shows a percentage (`0.25` → `25%`), `+` adds a sign to
+/// positive values. Colour letters and other codes don't change the number, so they're dropped.
+pub fn format_number(n: f64, fmt: &str) -> String {
+    let pct = fmt.contains('%');
+    let v = if pct { n * 100.0 } else { n };
+    let mut s = match fmt.chars().find(|c| c.is_ascii_digit()).and_then(|c| c.to_digit(10)) {
+        Some(d) => format!("{v:.*}", d as usize),
+        None => trim_num(v),
+    };
+    if fmt.contains('+') && v > 0.0 {
+        s.insert(0, '+');
+    }
+    if pct {
+        s.push('%');
+    }
+    s
+}
+
 fn trim_num(n: f64) -> String {
     let r = (n * 100.0).round() / 100.0;
     if r.fract() == 0.0 {
@@ -210,6 +256,26 @@ fn trim_num(n: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn formats_like_the_game() {
+        assert_eq!(format_number(2.0, "0=+"), "+2");
+        assert_eq!(format_number(-1.0, "+"), "-1");
+        assert_eq!(format_number(0.155, "Y%1"), "15.5%");
+        assert_eq!(format_number(3.0, "Y"), "3");
+        assert_eq!(format_number(1.5, ""), "1.5");
+    }
+
+    #[test]
+    fn fills_description_parameters() {
+        let mut v = Vars::default();
+        v.add_from(&crate::script::parse("@pts = 2").0);
+        let params = crate::script::parse("POINTS = @pts NAME = foo").0;
+        assert_eq!(
+            v.render_params("Points: $POINTS|0=+$ for $name$, $OTHER$", &params),
+            "Points: +2 for foo, $OTHER$"
+        );
+    }
 
     #[test]
     fn renders_var_refs_in_text() {

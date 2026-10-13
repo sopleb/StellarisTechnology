@@ -37,6 +37,7 @@ The 4 warnings come from GigaStructures prerequisites that name ACOT techs. ACOT
 ## Fixed after the first report
 - **Localisation keys are case-sensitive.** `astral_threads` and `ASTRAL_THREADS` hold different text. The tool now tries the exact key first, which removed names like `$NEUROCHIPS$ (Siege)`.
 - **Runtime placeholders:** the tool drops placeholders such as `$CIVIC|Y$` from condition text and fills `$@var|0%$` in effect text from script variables.
+- **Description parameters:** a modifier can pass values to its text through `description_parameters = { POINTS = @var }`. The tool now fills them and applies the game's format codes (decimals, `+` sign, `%`), so Gene Tailoring reads "Species Modification Points: +2". No `$...$` placeholder remains in the vanilla, GigaStructures or 36-mod playset output.
 - **"One of" prerequisites:** `prerequisites` can hold `OR = { … }` groups. The tool used to drop them, which left Titans and Juggernaut with no prerequisites. 19 vanilla techs use these groups. The output now lists them in `prerequisite_groups`.
 
 ## Known gaps and judgement calls
@@ -51,7 +52,6 @@ The 4 warnings come from GigaStructures prerequisites that name ACOT techs. ACOT
 
   Vanilla 4.5.2 has 106 such techs.
 - **Modifier values:** keys ending in `_mult`, `_percent` or `_perc` show as percentages, and `_add` keys show as flat numbers. Any other key shows as a percentage when its value is fractional.
-- **Leftover placeholder:** "Species Modification Points: $POINTS|0=+$" keeps its placeholder, because the game fills in that number during play.
 
 ## Housekeeping
 - **Java repo:** before the move, I made one commit (`0bd693f`) on `master` in the Java repo at `../stellaris-technology`. It adds the design spec and 3 `.gitignore` lines. Run `git reset --hard HEAD~1` there to drop it.
