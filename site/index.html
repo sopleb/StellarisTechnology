@@ -36,7 +36,17 @@
       <input id="q" type="search" placeholder="Search techs, unlocks, keys…  ( / )" autocomplete="off" spellcheck="false">
       <span id="hits" class="hits"></span>
     </div>
+    <button id="empire-btn" class="btn ghost" aria-expanded="false" aria-controls="empire" title="Pick your empire to see your real starting techs">Empire: <span id="empire-sum">Any</span></button>
     <button id="filters-btn" class="btn ghost" aria-expanded="false" aria-controls="filters">Filters<span id="filter-count" class="count"></span></button>
+  </div>
+  <div id="empire" class="filters empire" hidden>
+    <p class="hint">Pick your empire to see the techs you start with and hide the ones you can never get. Leave a field on “Any” if you don't want to set it. The lists only offer choices that change some tech.</p>
+    <div id="empire-fields" class="emp-grid"></div>
+    <div class="emp-foot">
+      <label><input type="checkbox" id="show-unavail"> Show techs my empire can't get</label>
+      <span id="empire-note" class="muted"></span>
+      <button id="empire-reset" class="btn ghost small">Reset empire</button>
+    </div>
   </div>
   <div id="filters" class="filters" hidden>
     <fieldset>
@@ -48,8 +58,8 @@
       <legend>Only</legend>
       <label><input type="checkbox" data-only="is_rare"> Rare</label>
       <label><input type="checkbox" data-only="is_dangerous"> Dangerous</label>
-      <label><input type="checkbox" data-only="is_start_tech"> Starting (any condition)</label>
-      <label><input type="checkbox" data-only="start_all"> Every empire starts with it</label>
+      <label><input type="checkbox" data-only="start_mine"> Starting for my empire</label>
+      <label><input type="checkbox" data-only="is_start_tech"> Starting for any empire</label>
       <label><input type="checkbox" data-only="is_insight"> Insight</label>
     </fieldset>
     <fieldset id="tiers-fs">
@@ -79,6 +89,7 @@
 
 <script src="js/util.js"></script>
 <script src="js/model.js"></script>
+<script src="js/empire.js"></script>
 <script src="js/detail.js"></script>
 <script src="js/grid.js"></script>
 <script src="js/graph.js"></script>

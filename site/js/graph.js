@@ -18,7 +18,7 @@
   // from barycenter sweeps), then the groups are shelf-packed into a roughly screen-shaped
   // area. Techs with no links in view are gathered into one compact block, ordered by tier.
   function layout(model, area) {
-    var list = model.techs.filter(function (t) { return area === "all" || t.area === area; });
+    var list = model.techs.filter(function (t) { return (area === "all" || t.area === area) && !ST.hidden(model, t); });
     var inSet = new Set(list.map(function (t) { return t.key; }));
     var parents = new Map(), kids = new Map();
     list.forEach(function (t) {
@@ -186,8 +186,9 @@
   }
 
   ST.graphLayout = function (model, area) {
-    if (!model.layouts.has(area)) model.layouts.set(area, layout(model, area));
-    return model.layouts.get(area);
+    var key = area + "|" + (model.profileKey || "");
+    if (!model.layouts.has(key)) model.layouts.set(key, layout(model, area));
+    return model.layouts.get(key);
   };
 
   ST.renderGraph = function (root, model, area, onSelect) {
@@ -231,7 +232,7 @@
     lay.nodes.forEach(function (n) {
       var t = model.byKey.get(n.key);
       var external = ST.prereqKeys(t).filter(function (p) { return !pos.has(p); }).length;
-      var flags = ST.flags(t);
+      var flags = ST.flags(t, model);
       var node = el(
         "div",
         {

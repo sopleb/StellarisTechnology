@@ -21,6 +21,7 @@ impl TriggerCtx<'_> {
                 key: "AND".into(),
                 op: "=".into(),
                 value: None,
+                value_name: None,
                 text: "All of the following".into(),
                 children: nodes,
                 scripted: None,
@@ -31,9 +32,11 @@ impl TriggerCtx<'_> {
     fn items(&self, b: &Block, depth: u8) -> Vec<Trigger> {
         b.items
             .iter()
-            .map(|i| match i {
-                Item::Pair(p) => self.node(&p.key, p.op, &p.value, depth),
-                Item::Bare(v) => self.node("", Op::Eq, v, depth),
+            .filter_map(|i| match i {
+                Item::Pair(p) => Some(self.node(&p.key, p.op, &p.value, depth)),
+                // A bare word such as `optimize_memory` is an engine hint, not a condition.
+                Item::Bare(Value::Scalar(_) | Value::Str(_)) => None,
+                Item::Bare(v) => Some(self.node("", Op::Eq, v, depth)),
             })
             .collect()
     }
@@ -43,6 +46,7 @@ impl TriggerCtx<'_> {
             key: key.into(),
             op: op.as_str().into(),
             value: None,
+            value_name: None,
             children: vec![],
             text: String::new(),
             scripted: None,
@@ -54,6 +58,7 @@ impl TriggerCtx<'_> {
             }
             Value::Scalar(s) | Value::Str(s) => {
                 t.value = Some(s.clone());
+                t.value_name = Some(self.value_name(s)).filter(|n| n != s);
                 t.text = self.leaf_text(key, op, s);
                 if depth < 2
                     && let (Some(body), Some(_)) = (self.scripted.get(key), v.as_bool())

@@ -6,13 +6,14 @@
   function techLink(model, key, onSelect) {
     var t = model.byKey.get(key);
     if (!t) return el("span", { class: "chip missing", title: "This dataset doesn't define this tech" }, key);
+    var out = ST.status(model, key).avail === false;
     return el(
       "a",
       {
-        class: "chip tech-link",
+        class: "chip tech-link" + (out ? " unavail" : ""),
         href: "#",
         style: { "--area": ST.areaColor(t.area) },
-        title: t.key,
+        title: t.key + (out ? "\nYour empire can't get this tech" : ""),
         onclick: function (e) { e.preventDefault(); onSelect(key, true); },
       },
       t.name
@@ -110,7 +111,7 @@
       el(
         "div",
         { class: "flags" },
-        ST.flags(t).map(function (f) { return el("span", { class: "flag " + f[0], title: f[2] }, f[1]); }),
+        ST.flags(t, model).map(function (f) { return el("span", { class: "flag " + f[0], title: f[2] }, f[1]); }),
         t.gateway ? el("span", { class: "flag gateway", title: "Gateway technology" }, "Gateway: " + ST.humanize(t.gateway)) : null
       )
     );
@@ -131,7 +132,22 @@
     var direct = (t.prerequisites || []).length + groups.length;
     var deps = model.dependents.get(t.key) || [];
 
+    var st = ST.status(model, t.key);
+    var yours = null;
+    if (model.customEmpire) {
+      var WORD = { true: "Yes", false: "No", null: "Depends on your game" };
+      yours = el(
+        "dl",
+        { class: "yours" },
+        el("dt", null, "Your empire can get it"),
+        el("dd", { class: "v-" + String(st.avail) }, WORD[String(st.avail)]),
+        t.is_start_tech ? el("dt", null, "Starts with it") : null,
+        t.is_start_tech ? el("dd", { class: "v-" + String(st.start) }, WORD[String(st.start)]) : null
+      );
+    }
+
     var body = [
+      yours,
       t.description ? el("p", { class: "d-desc" }, t.description) : null,
       stats,
       t.is_start_tech && !ST.startsForAll(t)

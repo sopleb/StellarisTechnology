@@ -132,7 +132,7 @@
       (t.prerequisite_groups || []).forEach(function (g) {
         var best = null, bestCost = Infinity;
         g.forEach(function (p) {
-          if (!model.byKey.has(p)) return;
+          if (!model.byKey.has(p) || ST.status(model, p).avail === false) return;
           var s = new Set(chain(p, stack));
           s.add(p);
           var c = cost(s);
@@ -162,11 +162,12 @@
     var q = (f.q || "").trim().toLowerCase();
     var terms = q ? q.split(/\s+/) : [];
     return function (t) {
+      if (ST.hidden(model, t)) return false;
       if (!f.event && t.is_event) return false;
       if (!f.repeatable && t.is_repeatable) return false;
       for (var i = 0; i < f.only.length; i++) {
         var k = f.only[i];
-        if (k === "start_all" ? !ST.startsForAll(t) : !t[k]) return false;
+        if (k === "start_mine" ? ST.status(model, t.key).start !== true : !t[k]) return false;
       }
       if (f.tiers.size && !f.tiers.has(t.tier)) return false;
       if (f.cats.size && !(t.category || []).some(function (c) { return f.cats.has(c); })) return false;
@@ -196,13 +197,25 @@
   };
 
   // [css class, label, tooltip].
-  ST.flags = function (t) {
+  // {avail, start} for the chosen empire (true / false / null = depends on the game).
+  ST.status = function (model, key) {
+    return (model.status && model.status.get(key)) || { avail: true, start: false };
+  };
+
+  // Hidden: the chosen empire can never get this tech, and the viewer isn't told to show those.
+  ST.hidden = function (model, t) {
+    return !model.showAll && ST.status(model, t.key).avail === false;
+  };
+
+  ST.flags = function (t, model) {
     var out = [];
-    if (t.is_start_tech && !ST.startsForAll(t)) {
+    var st = model ? ST.status(model, t.key) : null;
+    var start = st ? st.start : t.is_start_tech && ST.startsForAll(t) ? true : t.is_start_tech ? null : false;
+    if (start === true) {
+      out.push(["start", "Starting", model && model.customEmpire ? "Your empire starts with this tech" : "Every empire starts with this tech"]);
+    } else if (start == null) {
       var why = ST.startConditions(t).map(function (c) { return ST.triggerText(c); }).join("\n");
       out.push(["start cond", "Conditional start", "Starting tech only when:\n" + why]);
-    } else if (t.is_start_tech) {
-      out.push(["start", "Starting", "Every empire starts with this tech"]);
     }
     if (t.is_rare) out.push(["rare", "Rare"]);
     if (t.is_dangerous) out.push(["dangerous", "Dangerous"]);

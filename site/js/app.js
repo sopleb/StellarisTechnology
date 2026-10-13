@@ -11,6 +11,8 @@
     area: "all",
     tech: null,
     filters: freshFilters(),
+    profile: ST.decodeProfile(ST.store.get("empire", "")),
+    showAll: false,
   };
   var current = null; // the rendered view controller
   var loadSeq = 0;
@@ -22,7 +24,7 @@
   // ---- hash: #ds=vanilla&view=graph&area=physics&tech=tech_lasers_2&q=laser ----
   function readHash() {
     var p = new URLSearchParams(location.hash.replace(/^#/, ""));
-    return { ds: p.get("ds"), view: p.get("view"), area: p.get("area"), tech: p.get("tech"), q: p.get("q") };
+    return { ds: p.get("ds"), view: p.get("view"), area: p.get("area"), tech: p.get("tech"), q: p.get("q"), emp: p.get("emp") };
   }
   function writeHash(push) {
     var p = new URLSearchParams();
@@ -31,6 +33,8 @@
     if (state.area !== "all") p.set("area", state.area);
     if (state.tech) p.set("tech", state.tech);
     if (state.filters.q) p.set("q", state.filters.q);
+    var emp = ST.encodeProfile(state.profile);
+    if (emp) p.set("emp", emp);
     var h = "#" + p.toString();
     if (h === location.hash) return;
     if (push) history.pushState(null, "", h);
@@ -85,6 +89,7 @@
 
   function setModel(model) {
     state.model = model;
+    applyProfile();
     if (state.area !== "all" && !model.areas.some(function (a) { return a.key === state.area; })) state.area = "all";
     if (state.tech && !model.byKey.has(state.tech)) state.tech = null;
     var keepQ = state.filters.q;
@@ -99,7 +104,7 @@
     var m = state.model;
     var tabs = ST.clear($("#areas"));
     [{ key: "all", name: "All" }].concat(m.areas).forEach(function (a) {
-      var n = a.key === "all" ? m.techs.length : m.techs.filter(function (t) { return t.area === a.key; }).length;
+      var n = m.techs.filter(function (t) { return (a.key === "all" || t.area === a.key) && !ST.hidden(m, t); }).length;
       tabs.appendChild(
         el(
           "button",
@@ -280,6 +285,10 @@
     state.tech = h.tech || null;
     state.filters.q = h.q || "";
     $("#q").value = state.filters.q;
+    if (h.emp != null && h.emp !== ST.encodeProfile(state.profile)) {
+      state.profile = ST.decodeProfile(h.emp);
+      if (state.model) applyProfile();
+    }
     if (h.ds && h.ds !== state.ds && state.datasets.some(function (d) { return d.id === h.ds; })) return loadDataset(h.ds);
     if (state.model) {
       buildChrome();
@@ -380,6 +389,11 @@
         e.preventDefault();
         q.focus();
         q.select();
+      } else if (e.key === "Escape" && !typing && (!$("#empire").hidden || !$("#filters").hidden)) {
+        $("#empire").hidden = true;
+        $("#filters").hidden = true;
+        $("#empire-btn").setAttribute("aria-expanded", "false");
+        $("#filters-btn").setAttribute("aria-expanded", "false");
       } else if (e.key === "Escape" && !typing && state.tech) {
         select(null);
       }
@@ -389,7 +403,149 @@
     window.addEventListener("hashchange", applyHash);
   }
 
+  // ---- my empire ---------------------------------------------------------------
+  // Recompute every tech's status for the chosen empire and remember the choice.
+  function applyProfile() {
+    var m = state.model;
+    if (!m) return;
+    m.customEmpire = !ST.profileIsEmpty(state.profile);
+    m.status = ST.computeStatus(m, state.profile);
+    m.showAll = state.showAll;
+    m.profileKey = ST.encodeProfile(state.profile) + (state.showAll ? "+all" : "");
+    ST.store.set("empire", ST.encodeProfile(state.profile));
+    var hidden = 0;
+    m.status.forEach(function (s) { if (s.avail === false) hidden++; });
+    $("#empire-note").textContent = m.customEmpire
+      ? hidden + " techs your empire can't get are " + (state.showAll ? "shown." : "hidden.")
+      : "";
+    $("#empire-sum").textContent = summary();
+    $("#empire-btn").classList.toggle("set", m.customEmpire);
+    buildEmpireFields();
+  }
+
+  function summary() {
+    var p = state.profile, o = state.model ? ST.empireOptions(state.model) : {};
+    if (ST.profileIsEmpty(p)) return "Any";
+    var name = function (field, v) {
+      var hit = (o[field] || []).find(function (x) { return x.value === v; });
+      return hit ? hit.name : null;
+    };
+    var bits = [];
+    if (p.origin) bits.push(name("origin", p.origin) || "Other origin");
+    if (p.authority) bits.push(name("authority", p.authority) || "Other authority");
+    if (p.civics && p.civics.length) bits.push(p.civics.length + " civic" + (p.civics.length > 1 ? "s" : ""));
+    return bits.length ? bits.join(" · ") : "Custom";
+  }
+
+  function profileChanged() {
+    applyProfile();
+    buildChrome();
+    writeHash(false);
+    render();
+  }
+
+  function buildEmpireFields() {
+    var m = state.model, p = state.profile, box = ST.clear($("#empire-fields"));
+    if (!m) return;
+    var o = ST.empireOptions(m);
+
+    function select(field, label, choices, other) {
+      if (!choices.length && !other) return;
+      var s = el(
+        "select",
+        {
+          onchange: function (e) {
+            var v = e.target.value;
+            p[field] = v === "" ? null : v === "__no" ? false : v === "__yes" ? true : v === "__none" ? "" : v;
+            profileChanged();
+          },
+        },
+        el("option", { value: "" }, "Any"),
+        choices.map(function (c) { return el("option", { value: c.value }, c.name); }),
+        other ? el("option", { value: other.value }, other.name) : null
+      );
+      var cur = p[field];
+      s.value = cur == null ? "" : cur === false ? "__no" : cur === true ? "__yes" : cur === "" ? "__none" : cur;
+      box.appendChild(el("label", { class: "emp-field" }, el("span", null, label), s));
+    }
+
+    function chips(field, label, choices, extra) {
+      if (!choices.length) return;
+      var all = choices.map(function (c) { return c.value; });
+      var set = p[field] === "*" ? all : p[field];
+      var head = el(
+        "div",
+        { class: "emp-head" },
+        el("span", null, label, el("em", null, set == null ? " Any" : p[field] === "*" ? " All" : " " + set.length + " picked")),
+        el("button", { class: "linkish", onclick: function () { p[field] = null; profileChanged(); } }, "Any"),
+        extra ? extra.map(function (x) { return el("button", { class: "linkish", onclick: function () { p[field] = x.value(); profileChanged(); } }, x.label); }) : null
+      );
+      var list = el(
+        "div",
+        { class: "chips" },
+        choices.map(function (c) {
+          var on = !!set && set.indexOf(c.value) >= 0;
+          return el(
+            "button",
+            {
+              class: "chip toggle" + (on ? " on" : ""),
+              "aria-pressed": on ? "true" : "false",
+              title: c.value,
+              onclick: function () {
+                var cur = set ? set.slice() : [];
+                var i = cur.indexOf(c.value);
+                if (i >= 0) cur.splice(i, 1);
+                else cur.push(c.value);
+                p[field] = cur.length === all.length ? "*" : cur;
+                profileChanged();
+              },
+            },
+            c.name
+          );
+        })
+      );
+      box.appendChild(el("div", { class: "emp-field wide" }, head, list));
+    }
+
+    select("origin", "Origin", o.origin, { value: "__other", name: "Another origin" });
+    select("authority", "Authority", o.authority, { value: "__other", name: "Another authority" });
+    select("archetype", "Founder species", o.archetype, { value: "__other", name: "Another species type" });
+    select("ships", "Ships", o.ships, { value: "__none", name: "Regular ships" });
+    if (o.nomadic) select("nomadic", "Nomadic", [{ value: "__no", name: "No" }, { value: "__yes", name: "Yes" }]);
+    chips("ethics", "Ethics", o.ethics);
+    chips("civics", "Civics", o.civics);
+    chips("dlcs", "DLC", o.dlcs, [
+      { label: "All", value: function () { return "*"; } },
+      { label: "None", value: function () { return []; } },
+    ]);
+  }
+
+  function wireEmpire() {
+    var btn = $("#empire-btn"), panel = $("#empire");
+    btn.addEventListener("click", function () {
+      panel.hidden = !panel.hidden;
+      btn.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
+      if (!panel.hidden) {
+        $("#filters").hidden = true;
+        $("#filters-btn").setAttribute("aria-expanded", "false");
+      }
+    });
+    $("#filters-btn").addEventListener("click", function () {
+      panel.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+    });
+    $("#show-unavail").addEventListener("change", function (e) {
+      state.showAll = e.target.checked;
+      profileChanged();
+    });
+    $("#empire-reset").addEventListener("click", function () {
+      state.profile = ST.emptyProfile();
+      profileChanged();
+    });
+  }
+
   wire();
+  wireEmpire();
   loadIndex().then(function (list) {
     state.datasets = list;
     var sel = ST.clear($("#dataset"));
@@ -400,6 +556,7 @@
     state.tech = h.tech || null;
     state.filters.q = h.q || "";
     $("#q").value = state.filters.q;
+    if (h.emp) state.profile = ST.decodeProfile(h.emp);
     return loadDataset(h.ds || (list[0] && list[0].id));
   });
 })();

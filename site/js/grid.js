@@ -19,8 +19,8 @@
       },
       el("span", { class: "c-name" }, t.name),
       el("span", { class: "c-sub" }, cats, el("span", { class: "c-cost" }, ST.fmtNum(t.cost))),
-      ST.flags(t).length
-        ? el("span", { class: "c-flags" }, ST.flags(t).map(function (f) { return el("span", { class: "flag " + f[0], title: f[2] }, f[1]); }))
+      ST.flags(t, model).length
+        ? el("span", { class: "c-flags" }, ST.flags(t, model).map(function (f) { return el("span", { class: "flag " + f[0], title: f[2] }, f[1]); }))
         : null,
       pre.length ? el("span", { class: "c-pre", title: pre.join(", ") }, "← " + pre.join(", ")) : null
     );
