@@ -95,7 +95,7 @@
     var cols = Math.max(1, Math.ceil(Math.sqrt(list.length / 3)));
     var rows = Math.ceil(list.length / cols);
     return {
-      label: "No prerequisite links in view",
+      label: "No prerequisites in this view",
       nodes: list.map(function (t, i) {
         return { key: t.key, x: BPAD + Math.floor(i / rows) * (NODE_W + COL_GAP / 2), y: BPAD + LABEL_H + (i % rows) * ROW };
       }),
@@ -247,7 +247,7 @@
           el("span", { class: "n-tier" }, t.tier != null ? "T" + t.tier : ""),
           el("span", { class: "n-cost" }, ST.fmtNum(t.cost)),
           flags.length ? el("span", { class: "n-flags" }, flags.map(function (f) { return el("i", { class: "dot " + f[0], title: f[1] }); })) : null,
-          external ? el("span", { class: "n-ext", title: external + " prerequisite(s) in another area" }, "↰" + external) : null
+          external ? el("span", { class: "n-ext", title: external + (external > 1 ? " prerequisites" : " prerequisite") + " in another area" }, "↰" + external) : null
         )
       );
       nodeEls.set(t.key, node);

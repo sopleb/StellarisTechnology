@@ -57,7 +57,7 @@
   function loadDataset(id) {
     var d = state.datasets.find(function (x) { return x.id === id; }) || state.datasets[0];
     if (!d) {
-      status("No datasets are published here. Use “Open file…” to load a techs.json made by stellaris-tech.");
+      status("This site has no datasets yet. Use “Open file…” to load a techs.json from stellaris-tech.");
       return Promise.resolve();
     }
     var seq = ++loadSeq;
@@ -77,7 +77,7 @@
         if (seq !== loadSeq) return;
         status(
           "Could not load " + d.label + ": " + e.message +
-            (location.protocol === "file:" ? ". Browsers block loading data from file:// pages; serve the folder over HTTP or use “Open file…”." : ""),
+            (location.protocol === "file:" ? ". Your browser blocks data loads on file:// pages. Serve the folder over HTTP, or use “Open file…”." : ""),
           true
         );
       });

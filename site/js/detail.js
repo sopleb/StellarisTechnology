@@ -5,7 +5,7 @@
 
   function techLink(model, key, onSelect) {
     var t = model.byKey.get(key);
-    if (!t) return el("span", { class: "chip missing", title: "Not defined in this dataset" }, key);
+    if (!t) return el("span", { class: "chip missing", title: "This dataset doesn't define this tech" }, key);
     return el(
       "a",
       {
@@ -156,7 +156,7 @@
         path.techs.size > direct
           ? el(
               "span",
-              { class: "h-note", title: groups.length ? "Taking the cheapest option of each “one of” choice" : null },
+              { class: "h-note", title: groups.length ? "Counts the cheapest option of each “one of” choice" : null },
               path.techs.size + " techs in the full chain · " + ST.fmtNum(path.cost) + " research" + (groups.length ? " (cheapest)" : "")
             )
           : null

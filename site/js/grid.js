@@ -69,7 +69,7 @@
         )
       );
     });
-    if (!shown) wrap.appendChild(el("div", { class: "status" }, "No technologies match the current search and filters."));
+    if (!shown) wrap.appendChild(el("div", { class: "status" }, "No techs match your search and filters."));
     root.appendChild(wrap);
     return {
       shown: shown,
