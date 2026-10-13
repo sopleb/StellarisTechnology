@@ -93,6 +93,7 @@ A `Trigger` node:
 
 ```jsonc
 { "key": "has_ethic", "op": "=", "value": "ethic_militarist", "text": "Has ethic: Militarist",
+  "value_name": "Militarist", // localised name of value; omitted when the game has none
   "children": [ ... ],      // for blocks (AND/OR/NOT/scopes); omitted when empty
   "scripted": [ ... ] }     // scripted trigger body, expanded one level; omitted otherwise
 ```
@@ -112,7 +113,13 @@ A `Trigger` node:
 - **Search and filters:**
   - Search covers names, keys and unlock names. `/` jumps to the search box, and Enter selects the first match.
   - Filters cover tier, category, rare, dangerous, starting, insight, event techs, repeatables and source mod.
-- **Start techs:** "Starting" means every empire starts with the tech. "Conditional start" means the tech has a `potential` or `starting_potential`, so only some empires start with it. Hover the badge, or open the tech, to see the condition. Hyperspace Travel, for example, starts for every empire without an explorer civic.
+- **Your empire:** the "Empire" button lets you pick your origin, authority, founder species type, ship type, nomadic status, ethics, civics and owned DLC. The viewer then checks each tech's `potential` and `starting_potential` against your picks:
+  - "Starting" marks the techs your empire starts with, and the detail panel says whether your empire can get the tech and starts with it.
+  - The viewer hides the techs your empire can never get. "Show techs my empire can't get" brings them back.
+  - Conditions your setup can't answer (flags, other techs, events) count as "depends on your game", and the viewer keeps those techs.
+  - The lists only offer values that some tech condition tests, so modded origins and civics show up on their own. The link and your browser remember your picks.
+
+  Without an empire set, "Starting" means every empire starts with the tech, and "Conditional start" means only some do. Hyperspace Travel, for example, doesn't start for empires with an explorer civic such as Eager Explorers.
 - **Shareable links:** the URL keeps the dataset, view, area, selected tech and search, for example `#ds=vanilla&view=graph&tech=tech_destroyers`.
 - **Your own data:** "Open file…" loads a `techs.json` you generated, such as your own playset. The file stays in your browser.
 
