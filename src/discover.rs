@@ -7,7 +7,10 @@ const GAME_DIR: &str = "steamapps/common/Stellaris";
 pub const WORKSHOP_DIR: &str = "steamapps/workshop/content/281990";
 
 fn home() -> PathBuf {
-    std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from).unwrap_or_default()
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+        .unwrap_or_default()
 }
 
 /// Candidate Steam root directories for the current platform.
@@ -29,7 +32,9 @@ pub fn steam_roots() -> Vec<PathBuf> {
 /// Library paths listed in a `libraryfolders.vdf`.
 pub fn parse_library_folders(vdf: &str) -> Vec<PathBuf> {
     let re = Regex::new(r#""path"\s+"([^"]+)""#).unwrap();
-    re.captures_iter(vdf).map(|c| PathBuf::from(c[1].replace("\\\\", "\\"))).collect()
+    re.captures_iter(vdf)
+        .map(|c| PathBuf::from(c[1].replace("\\\\", "\\")))
+        .collect()
 }
 
 /// All Steam library folders found from all Steam roots, de-duplicated.
@@ -56,12 +61,19 @@ pub fn is_game_dir(p: &Path) -> bool {
 
 /// First Steam library containing Stellaris.
 pub fn find_game() -> Option<PathBuf> {
-    steam_libraries().into_iter().map(|l| l.join(GAME_DIR)).find(|p| is_game_dir(p))
+    steam_libraries()
+        .into_iter()
+        .map(|l| l.join(GAME_DIR))
+        .find(|p| is_game_dir(p))
 }
 
 /// Steam Workshop content directories for Stellaris across all libraries.
 pub fn workshop_dirs() -> Vec<PathBuf> {
-    steam_libraries().into_iter().map(|l| l.join(WORKSHOP_DIR)).filter(|p| p.is_dir()).collect()
+    steam_libraries()
+        .into_iter()
+        .map(|l| l.join(WORKSHOP_DIR))
+        .filter(|p| p.is_dir())
+        .collect()
 }
 
 /// The Paradox user directory (`.../Paradox Interactive/Stellaris`).
@@ -80,7 +92,10 @@ pub fn user_dir() -> Option<PathBuf> {
 pub fn game_version(game: &Path) -> Option<String> {
     let s = std::fs::read_to_string(game.join("launcher-settings.json")).ok()?;
     let v: serde_json::Value = serde_json::from_str(&s).ok()?;
-    v.get("rawVersion").or_else(|| v.get("version")).and_then(|x| x.as_str()).map(str::to_string)
+    v.get("rawVersion")
+        .or_else(|| v.get("version"))
+        .and_then(|x| x.as_str())
+        .map(str::to_string)
 }
 
 #[cfg(test)]
@@ -103,14 +118,21 @@ mod tests {
 }"#;
         assert_eq!(
             parse_library_folders(vdf),
-            vec![PathBuf::from("/home/u/.local/share/Steam"), PathBuf::from("D:\\SteamLibrary")]
+            vec![
+                PathBuf::from("/home/u/.local/share/Steam"),
+                PathBuf::from("D:\\SteamLibrary")
+            ]
         );
     }
 
     #[test]
     fn reads_version() {
         let t = tempfile::tempdir().unwrap();
-        std::fs::write(t.path().join("launcher-settings.json"), r#"{"version":"Cygnus v4.5.2","rawVersion":"v4.5.2"}"#).unwrap();
+        std::fs::write(
+            t.path().join("launcher-settings.json"),
+            r#"{"version":"Cygnus v4.5.2","rawVersion":"v4.5.2"}"#,
+        )
+        .unwrap();
         assert_eq!(game_version(t.path()).as_deref(), Some("v4.5.2"));
     }
 }

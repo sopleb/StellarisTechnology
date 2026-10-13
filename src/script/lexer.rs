@@ -64,7 +64,10 @@ pub fn tokenize(src: &str) -> Vec<Token> {
                 match op {
                     Some(op) => out.push(Token { tok: Tok::Op(op), line }),
                     // Lone `!` or `?`: keep it as a scalar so nothing is silently lost.
-                    None => out.push(Token { tok: Tok::Scalar(c.to_string()), line }),
+                    None => out.push(Token {
+                        tok: Tok::Scalar(c.to_string()),
+                        line,
+                    }),
                 }
                 i += len;
             }
@@ -85,7 +88,10 @@ pub fn tokenize(src: &str) -> Vec<Token> {
                     i += 1;
                 }
                 i += 1; // closing quote (or EOF)
-                out.push(Token { tok: Tok::Str(s), line: start_line });
+                out.push(Token {
+                    tok: Tok::Str(s),
+                    line: start_line,
+                });
             }
             '@' if chars.get(i + 1) == Some(&'[') => {
                 // Inline math `@[ ... ]` is a single scalar.
@@ -100,7 +106,10 @@ pub fn tokenize(src: &str) -> Vec<Token> {
                         break;
                     }
                 }
-                out.push(Token { tok: Tok::Scalar(s), line });
+                out.push(Token {
+                    tok: Tok::Scalar(s),
+                    line,
+                });
             }
             _ => {
                 let mut s = String::new();
@@ -122,7 +131,10 @@ pub fn tokenize(src: &str) -> Vec<Token> {
                     s.push(chars[i]);
                     i += 1;
                 }
-                out.push(Token { tok: Tok::Scalar(s), line });
+                out.push(Token {
+                    tok: Tok::Scalar(s),
+                    line,
+                });
             }
         }
     }
@@ -147,7 +159,17 @@ mod tests {
                     _ => None,
                 })
                 .collect::<Vec<_>>(),
-            vec![Op::Eq, Op::EqEq, Op::Ne, Op::Ne, Op::Lt, Op::Gt, Op::Le, Op::Ge, Op::QEq]
+            vec![
+                Op::Eq,
+                Op::EqEq,
+                Op::Ne,
+                Op::Ne,
+                Op::Lt,
+                Op::Gt,
+                Op::Le,
+                Op::Ge,
+                Op::QEq
+            ]
         );
     }
 
@@ -171,12 +193,15 @@ mod tests {
 
     #[test]
     fn embedded_math() {
-        assert_eq!(toks("s = a_@[ 1 - (x) ] b"), vec![
-            Tok::Scalar("s".into()),
-            Tok::Op(Op::Eq),
-            Tok::Scalar("a_@[ 1 - (x) ]".into()),
-            Tok::Scalar("b".into()),
-        ]);
+        assert_eq!(
+            toks("s = a_@[ 1 - (x) ] b"),
+            vec![
+                Tok::Scalar("s".into()),
+                Tok::Op(Op::Eq),
+                Tok::Scalar("a_@[ 1 - (x) ]".into()),
+                Tok::Scalar("b".into()),
+            ]
+        );
     }
 
     #[test]

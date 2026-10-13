@@ -81,7 +81,10 @@ mod tests {
     #[test]
     fn substitutes_params_and_defaults() {
         let p = vec![("TECH".to_string(), "tech_a".to_string())];
-        assert_eq!(substitute("x = $TECH$ y = $N|3$ z = $Q$", &p), "x = tech_a y = 3 z = $Q$");
+        assert_eq!(
+            substitute("x = $TECH$ y = $N|3$ z = $Q$", &p),
+            "x = tech_a y = 3 z = $Q$"
+        );
     }
 
     #[test]
@@ -89,14 +92,21 @@ mod tests {
         let t = tempfile::tempdir().unwrap();
         let d = t.path().join("common/inline_scripts/technologies");
         std::fs::create_dir_all(&d).unwrap();
-        std::fs::write(d.join("w.txt"), "modifier = { factor = 2 has_technology = $TECHNOLOGY$ }").unwrap();
+        std::fs::write(
+            d.join("w.txt"),
+            "modifier = { factor = 2 has_technology = $TECHNOLOGY$ }",
+        )
+        .unwrap();
         let src = GameSource::new(t.path().to_path_buf());
         let (b, _) = script::parse(
             "weight_modifier = { factor = 1 inline_script = { script = technologies/w TECHNOLOGY = tech_x } }",
         );
         let e = expand(&b, &src, &Vars::default());
         let wm = e.get_block("weight_modifier").unwrap();
-        assert_eq!(wm.get_block("modifier").unwrap().get_str("has_technology"), Some("tech_x"));
+        assert_eq!(
+            wm.get_block("modifier").unwrap().get_str("has_technology"),
+            Some("tech_x")
+        );
         assert!(wm.get("inline_script").is_none());
     }
 }

@@ -68,7 +68,12 @@ fn main() -> Result<()> {
             let (pname, list) = mods::playset_mods(&ud, name.as_deref())?;
             println!("{pname}:");
             for m in list {
-                println!("  {:>3}  {}  ({})", m.position, m.name, m.dir.map(|d| d.display().to_string()).unwrap_or_default());
+                println!(
+                    "  {:>3}  {}  ({})",
+                    m.position,
+                    m.name,
+                    m.dir.map(|d| d.display().to_string()).unwrap_or_default()
+                );
             }
             return Ok(());
         }
@@ -77,7 +82,10 @@ fn main() -> Result<()> {
 
     let game = match cli.game.clone().or_else(discover::find_game) {
         Some(g) if discover::is_game_dir(&g) => g,
-        Some(g) => bail!("{} does not look like a Stellaris install (no common/technology)", g.display()),
+        Some(g) => bail!(
+            "{} does not look like a Stellaris install (no common/technology)",
+            g.display()
+        ),
         None => bail!("could not find Stellaris in any Steam library; pass --game"),
     };
     log::info!("game: {}", game.display());
@@ -86,7 +94,9 @@ fn main() -> Result<()> {
     let mut warnings = Vec::new();
     let mut playset_name = None;
     if let Some(name) = &cli.playset {
-        let ud = user_dir.as_deref().context("Paradox user directory not found; pass --user-dir")?;
+        let ud = user_dir
+            .as_deref()
+            .context("Paradox user directory not found; pass --user-dir")?;
         let (pname, layers) = mods::playset_layers(ud, (!name.is_empty()).then_some(name.as_str()), &mut warnings)?;
         log::info!("playset {pname:?}: {} mods", layers.len());
         playset_name = Some(pname);
@@ -111,7 +121,11 @@ fn main() -> Result<()> {
     if let Some(dir) = cli.out.parent().filter(|d| !d.as_os_str().is_empty()) {
         std::fs::create_dir_all(dir)?;
     }
-    let json = if cli.pretty { serde_json::to_vec_pretty(&output)? } else { serde_json::to_vec(&output)? };
+    let json = if cli.pretty {
+        serde_json::to_vec_pretty(&output)?
+    } else {
+        serde_json::to_vec(&output)?
+    };
     std::fs::write(&cli.out, json).with_context(|| format!("writing {}", cli.out.display()))?;
     eprintln!(
         "wrote {} techs ({} warnings) to {}",

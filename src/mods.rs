@@ -22,7 +22,10 @@ pub fn parse_descriptor(text: &str) -> Descriptor {
         path: s("path").or_else(|| s("archive")),
         remote_file_id: s("remote_file_id"),
         supported_version: s("supported_version"),
-        replace_paths: b.get_all("replace_path").filter_map(|p| p.value.as_str().map(str::to_string)).collect(),
+        replace_paths: b
+            .get_all("replace_path")
+            .filter_map(|p| p.value.as_str().map(str::to_string))
+            .collect(),
     }
 }
 
@@ -33,7 +36,10 @@ fn read_descriptor(p: &Path) -> Option<Descriptor> {
 /// Build a layer from a mod directory, a `.mod` descriptor file, or a workshop id.
 pub fn layer_from_arg(arg: &Path, user_dir: Option<&Path>, workshop: &[PathBuf]) -> Result<Layer> {
     // Bare workshop id.
-    if let Some(id) = arg.to_str().filter(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit())) {
+    if let Some(id) = arg
+        .to_str()
+        .filter(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit()))
+    {
         let dir = workshop.iter().map(|w| w.join(id)).find(|p| p.is_dir());
         return match dir {
             Some(d) => layer_from_dir(&d, None),
@@ -45,15 +51,23 @@ pub fn layer_from_arg(arg: &Path, user_dir: Option<&Path>, workshop: &[PathBuf])
     }
     if arg.extension().is_some_and(|e| e == "mod") {
         let d = read_descriptor(arg).with_context(|| format!("reading {}", arg.display()))?;
-        let raw = d.path.clone().with_context(|| format!("{} has no path=", arg.display()))?;
+        let raw = d
+            .path
+            .clone()
+            .with_context(|| format!("{} has no path=", arg.display()))?;
         let mut dir = PathBuf::from(&raw);
         if dir.is_relative() {
-            let base = user_dir.map(Path::to_path_buf).or_else(|| arg.parent().and_then(Path::parent).map(Path::to_path_buf));
+            let base = user_dir
+                .map(Path::to_path_buf)
+                .or_else(|| arg.parent().and_then(Path::parent).map(Path::to_path_buf));
             dir = base.unwrap_or_default().join(dir);
         }
         return layer_from_dir(&dir, Some(d));
     }
-    bail!("mod path {} is neither a directory, a .mod file nor a workshop id", arg.display())
+    bail!(
+        "mod path {} is neither a directory, a .mod file nor a workshop id",
+        arg.display()
+    )
 }
 
 /// Build a layer from a mod directory, reading its `descriptor.mod` when present.
@@ -63,10 +77,11 @@ pub fn layer_from_dir(dir: &Path, outer: Option<Descriptor>) -> Result<Layer> {
     }
     let inner = read_descriptor(&dir.join("descriptor.mod")).unwrap_or_default();
     let outer = outer.unwrap_or_default();
-    let name = outer
-        .name
-        .or(inner.name)
-        .unwrap_or_else(|| dir.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default());
+    let name = outer.name.or(inner.name).unwrap_or_else(|| {
+        dir.file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default()
+    });
     let mut replace_paths = inner.replace_paths;
     replace_paths.extend(outer.replace_paths);
     Ok(Layer {
@@ -97,7 +112,10 @@ fn open_launcher_db(user_dir: &Path) -> Result<rusqlite::Connection> {
         bail!("launcher database not found at {}", db.display());
     }
     // Read-only and immutable so a running launcher is never disturbed.
-    let uri = format!("file:{}?mode=ro&immutable=1", db.to_string_lossy().replace('?', "%3f").replace('#', "%23"));
+    let uri = format!(
+        "file:{}?mode=ro&immutable=1",
+        db.to_string_lossy().replace('?', "%3f").replace('#', "%23")
+    );
     let flags = rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_URI;
     rusqlite::Connection::open_with_flags(uri, flags).with_context(|| format!("opening {}", db.display()))
 }
@@ -105,7 +123,12 @@ fn open_launcher_db(user_dir: &Path) -> Result<rusqlite::Connection> {
 pub fn list_playsets(user_dir: &Path) -> Result<Vec<Playset>> {
     let c = open_launcher_db(user_dir)?;
     let mut st = c.prepare("SELECT name, COALESCE(isActive, 0) FROM playsets ORDER BY name")?;
-    let rows = st.query_map([], |r| Ok(Playset { name: r.get(0)?, active: r.get::<_, i64>(1)? != 0 }))?;
+    let rows = st.query_map([], |r| {
+        Ok(Playset {
+            name: r.get(0)?,
+            active: r.get::<_, i64>(1)? != 0,
+        })
+    })?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)
 }
 
@@ -114,10 +137,14 @@ pub fn playset_mods(user_dir: &Path, name: Option<&str>) -> Result<(String, Vec<
     let c = open_launcher_db(user_dir)?;
     let (id, pname): (String, String) = match name {
         Some(n) => c
-            .query_row("SELECT id, name FROM playsets WHERE name = ?1", [n], |r| Ok((r.get(0)?, r.get(1)?)))
+            .query_row("SELECT id, name FROM playsets WHERE name = ?1", [n], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
             .with_context(|| format!("no playset named {n:?}"))?,
         None => c
-            .query_row("SELECT id, name FROM playsets WHERE isActive = 1", [], |r| Ok((r.get(0)?, r.get(1)?)))
+            .query_row("SELECT id, name FROM playsets WHERE isActive = 1", [], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
             .context("no active playset")?,
     };
     let mut st = c.prepare(
@@ -175,7 +202,11 @@ mod tests {
         let t = tempfile::tempdir().unwrap();
         let user = t.path();
         std::fs::create_dir_all(user.join("mod/foo")).unwrap();
-        std::fs::write(user.join("mod/foo/descriptor.mod"), "name=\"Inner\"\nreplace_path=\"common/x\"").unwrap();
+        std::fs::write(
+            user.join("mod/foo/descriptor.mod"),
+            "name=\"Inner\"\nreplace_path=\"common/x\"",
+        )
+        .unwrap();
         std::fs::write(user.join("mod/foo.mod"), "name=\"Outer\"\npath=\"mod/foo\"").unwrap();
         let l = layer_from_arg(&user.join("mod/foo.mod"), Some(user), &[]).unwrap();
         assert_eq!(l.name, "Outer");
@@ -201,7 +232,10 @@ mod tests {
         assert_eq!(ps.iter().find(|p| p.active).unwrap().name, "B");
         let (n, mods) = playset_mods(t.path(), None).unwrap();
         assert_eq!(n, "B");
-        assert_eq!(mods.iter().map(|m| m.name.as_str()).collect::<Vec<_>>(), vec!["One", "Two"]);
+        assert_eq!(
+            mods.iter().map(|m| m.name.as_str()).collect::<Vec<_>>(),
+            vec!["One", "Two"]
+        );
         let (_, a) = playset_mods(t.path(), Some("A")).unwrap();
         assert_eq!(a[0].name, "Three");
     }

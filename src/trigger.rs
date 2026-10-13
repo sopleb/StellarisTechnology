@@ -39,7 +39,14 @@ impl TriggerCtx<'_> {
     }
 
     fn node(&self, key: &str, op: Op, v: &Value, depth: u8) -> Trigger {
-        let mut t = Trigger { key: key.into(), op: op.as_str().into(), value: None, children: vec![], text: String::new(), scripted: None };
+        let mut t = Trigger {
+            key: key.into(),
+            op: op.as_str().into(),
+            value: None,
+            children: vec![],
+            text: String::new(),
+            scripted: None,
+        };
         match v {
             Value::Block(b) | Value::Tagged(_, b) => {
                 t.children = self.items(b, depth);
@@ -76,7 +83,11 @@ impl TriggerCtx<'_> {
             return self.value_name(value);
         }
         if key == "always" {
-            return if value == "yes" { "Always".into() } else { "Never".into() };
+            return if value == "yes" {
+                "Always".into()
+            } else {
+                "Never".into()
+            };
         }
         let name = self.key_name(key);
         match (op, value) {
@@ -96,7 +107,10 @@ impl TriggerCtx<'_> {
         if value.parse::<f64>().is_ok() {
             return value.into();
         }
-        self.loc.get(value).filter(|s| !s.is_empty() && !s.contains('\n')).unwrap_or_else(|| value.into())
+        self.loc
+            .get(value)
+            .filter(|s| !s.is_empty() && !s.contains('\n'))
+            .unwrap_or_else(|| value.into())
     }
 }
 
@@ -133,8 +147,14 @@ mod tests {
         let mut loc = Localisation::default();
         loc.load_str(" tech_lasers_1:0 \"Red Lasers\"\n ethic_pacifist:0 \"Pacifist\"");
         let (s, _) = parse("is_cool = { has_ethic = ethic_pacifist }");
-        let scripted: HashMap<String, Block> = s.pairs().map(|p| (p.key.clone(), p.value.as_block().unwrap().clone())).collect();
-        let ctx = TriggerCtx { loc: &loc, scripted: &scripted };
+        let scripted: HashMap<String, Block> = s
+            .pairs()
+            .map(|p| (p.key.clone(), p.value.as_block().unwrap().clone()))
+            .collect();
+        let ctx = TriggerCtx {
+            loc: &loc,
+            scripted: &scripted,
+        };
         let (b, _) = parse(
             "has_technology = tech_lasers_1 years_passed > 20 is_gestalt = no NOT = { has_ethic = ethic_pacifist } is_cool = yes always = no",
         );
@@ -160,7 +180,10 @@ mod tests {
     fn single_condition_is_not_wrapped() {
         let loc = Localisation::default();
         let scripted = HashMap::new();
-        let ctx = TriggerCtx { loc: &loc, scripted: &scripted };
+        let ctx = TriggerCtx {
+            loc: &loc,
+            scripted: &scripted,
+        };
         let (b, _) = parse("has_country_flag = x");
         assert_eq!(ctx.block(&b).unwrap().key, "has_country_flag");
         assert!(ctx.block(&Block::default()).is_none());

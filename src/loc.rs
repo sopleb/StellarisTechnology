@@ -96,7 +96,9 @@ pub fn parse_yml(text: &str) -> Vec<(String, String)> {
             continue;
         }
         let rest = &line[colon + 1..];
-        let (Some(start), Some(end)) = (rest.find('"'), rest.rfind('"')) else { continue };
+        let (Some(start), Some(end)) = (rest.find('"'), rest.rfind('"')) else {
+            continue;
+        };
         if end <= start {
             continue;
         }
@@ -115,7 +117,8 @@ mod tests {
 
     #[test]
     fn parses_yml_lines() {
-        let v = parse_yml("\u{feff}l_english:\n # c\n a:0 \"Hello \"x\" there\" # tail\n b: \"B\"\n bad line\n c:1 \"\"\n");
+        let v =
+            parse_yml("\u{feff}l_english:\n # c\n a:0 \"Hello \"x\" there\" # tail\n b: \"B\"\n bad line\n c:1 \"\"\n");
         assert_eq!(
             v,
             vec![
@@ -129,7 +132,9 @@ mod tests {
     #[test]
     fn resolves_and_cleans() {
         let mut l = Localisation::default();
-        l.load_str("l_english:\n corvette:0 \"$MOD_HULL$: §G+10%§!\\n£energy£ $unknown$ $x|y$\"\n mod_hull:0 \"Hull\"\n");
+        l.load_str(
+            "l_english:\n corvette:0 \"$MOD_HULL$: §G+10%§!\\n£energy£ $unknown$ $x|y$\"\n mod_hull:0 \"Hull\"\n",
+        );
         assert_eq!(l.get("CORVETTE").unwrap(), "Hull: +10%\n$unknown$ $x|y$");
         assert_eq!(l.name("missing_key"), "missing_key");
     }

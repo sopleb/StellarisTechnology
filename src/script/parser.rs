@@ -16,7 +16,11 @@ struct Parser {
 /// Parse a whole file. Always returns a block; problems are reported as errors
 /// and the parser recovers by skipping the offending token.
 pub fn parse(src: &str) -> (Block, Vec<ParseError>) {
-    let mut p = Parser { toks: tokenize(src), pos: 0, errors: Vec::new() };
+    let mut p = Parser {
+        toks: tokenize(src),
+        pos: 0,
+        errors: Vec::new(),
+    };
     let block = p.block(true);
     (block, p.errors)
 }
@@ -27,7 +31,10 @@ impl Parser {
     }
 
     fn err(&mut self, line: u32, message: impl Into<String>) {
-        self.errors.push(ParseError { line, message: message.into() });
+        self.errors.push(ParseError {
+            line,
+            message: message.into(),
+        });
     }
 
     fn line(&self) -> u32 {
@@ -69,7 +76,12 @@ impl Parser {
                     if let Some(Token { tok: Tok::Op(op), .. }) = self.peek(1).cloned() {
                         self.pos += 2;
                         match self.value(tok.line) {
-                            Some(value) => items.push(Item::Pair(Pair { key, op, value, line: tok.line })),
+                            Some(value) => items.push(Item::Pair(Pair {
+                                key,
+                                op,
+                                value,
+                                line: tok.line,
+                            })),
                             None => self.err(tok.line, format!("missing value for '{key}'")),
                         }
                     } else {
@@ -145,7 +157,10 @@ mod tests {
         let t = b.get_block("tech_a").unwrap();
         assert_eq!(t.get_str("cost"), Some("@tier1cost"));
         assert_eq!(t.get_block("category").unwrap().bare_strings(), vec!["voidcraft"]);
-        assert_eq!(t.get_block("prerequisites").unwrap().bare_strings(), vec!["tech_b", "tech_c"]);
+        assert_eq!(
+            t.get_block("prerequisites").unwrap().bare_strings(),
+            vec!["tech_b", "tech_c"]
+        );
         assert_eq!(t.get_bool("start_tech"), Some(true));
         let pot = t.get_block("potential").unwrap();
         let yp = pot.pairs().next().unwrap();

@@ -23,18 +23,30 @@ fn run(mods: &[&str], lang: &str) -> Output {
 }
 
 fn tech<'a>(o: &'a Output, k: &str) -> &'a Tech {
-    o.techs.iter().find(|t| t.key == k).unwrap_or_else(|| panic!("no tech {k}"))
+    o.techs
+        .iter()
+        .find(|t| t.key == k)
+        .unwrap_or_else(|| panic!("no tech {k}"))
 }
 
 #[test]
 fn vanilla_extraction() {
     let o = run(&[], "english");
     assert_eq!(o.meta.game_version.as_deref(), Some("v9.9.9"));
-    assert_eq!(o.techs.iter().map(|t| t.key.as_str()).collect::<Vec<_>>(), ["tech_lasers_1", "tech_lasers_2", "tech_secret", "tech_repeat"]);
-    assert_eq!(o.categories.iter().map(|c| (c.key.as_str(), c.name.as_str(), c.area.as_deref())).collect::<Vec<_>>(), [
-        ("particles", "Particles", Some("physics")),
-        ("voidcraft", "voidcraft", Some("society"))
-    ]);
+    assert_eq!(
+        o.techs.iter().map(|t| t.key.as_str()).collect::<Vec<_>>(),
+        ["tech_lasers_1", "tech_lasers_2", "tech_secret", "tech_repeat"]
+    );
+    assert_eq!(
+        o.categories
+            .iter()
+            .map(|c| (c.key.as_str(), c.name.as_str(), c.area.as_deref()))
+            .collect::<Vec<_>>(),
+        [
+            ("particles", "Particles", Some("physics")),
+            ("voidcraft", "voidcraft", Some("society"))
+        ]
+    );
     assert_eq!(o.tiers.len(), 2);
     assert_eq!(o.tiers[1].previously_unlocked, Some(4.0));
     assert_eq!(o.areas[0].name, "Physics");
@@ -54,14 +66,20 @@ fn vanilla_extraction() {
     let cond = wm.condition.as_ref().unwrap();
     assert_eq!(cond.text, "Is friendly");
     assert_eq!(cond.scripted.as_ref().unwrap()[0].text, "Has ethic: Xenophile");
-    assert_eq!(t.weight_modifiers[1].condition.as_ref().unwrap().text, "Has technology: Red Lasers");
+    assert_eq!(
+        t.weight_modifiers[1].condition.as_ref().unwrap().text,
+        "Has technology: Red Lasers"
+    );
     let unlocks: Vec<(&str, &str)> = t.unlocks.iter().map(|u| (u.kind.as_str(), u.name.as_str())).collect();
-    assert_eq!(unlocks, [
-        ("feature", "Better Lasers"),
-        ("modifier", "Weapon Damage: +5%"),
-        ("tooltip", "Lasers are great"),
-        ("component_templates", "Small Blue Laser"),
-    ]);
+    assert_eq!(
+        unlocks,
+        [
+            ("feature", "Better Lasers"),
+            ("modifier", "Weapon Damage: +5%"),
+            ("tooltip", "Lasers are great"),
+            ("component_templates", "Small Blue Laser"),
+        ]
+    );
     assert_eq!(t.swaps[0].name, "Bio Lasers");
     assert!(!t.is_event);
 
@@ -75,14 +93,22 @@ fn vanilla_extraction() {
     assert!(r.is_repeatable && !r.is_event);
     assert_eq!((r.cost_per_level, r.levels), (Some(2.0), Some(-1)));
 
-    assert!(tech(&o, "tech_lasers_1").unlocks.iter().any(|u| u.kind == "buildings" && u.name == "Lab"));
+    assert!(
+        tech(&o, "tech_lasers_1")
+            .unlocks
+            .iter()
+            .any(|u| u.kind == "buildings" && u.name == "Lab")
+    );
     assert_eq!(tech(&o, "tech_lasers_1").source, "vanilla");
 }
 
 #[test]
 fn mods_override_and_extend() {
     let o = run(&["mod_a", "mod_b"], "english");
-    assert_eq!(o.meta.mods.iter().map(|m| m.name.as_str()).collect::<Vec<_>>(), ["Mod A", "Mod B"]);
+    assert_eq!(
+        o.meta.mods.iter().map(|m| m.name.as_str()).collect::<Vec<_>>(),
+        ["Mod A", "Mod B"]
+    );
     assert_eq!(o.meta.mods[0].remote_id.as_deref(), Some("111"));
 
     // Same relative file path: mod_a's 00_test_tech.txt replaces vanilla's entirely.

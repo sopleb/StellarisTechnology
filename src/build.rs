@@ -91,7 +91,10 @@ pub fn build(input: BuildInput) -> Output {
             }
         }
     }
-    let ctx = TriggerCtx { loc: &loc, scripted: &scripted };
+    let ctx = TriggerCtx {
+        loc: &loc,
+        scripted: &scripted,
+    };
 
     // Techs, in load order; a later definition of the same key replaces the earlier one.
     let mut techs: Vec<Tech> = Vec::new();
@@ -144,7 +147,11 @@ pub fn build(input: BuildInput) -> Output {
                 .filter(|p| !p.key.starts_with('@'))
                 .map(|p| Tier {
                     key: p.key.clone(),
-                    previously_unlocked: p.value.as_block().and_then(|b| b.get("previously_unlocked")).and_then(|v| fv.number_of(v)),
+                    previously_unlocked: p
+                        .value
+                        .as_block()
+                        .and_then(|b| b.get("previously_unlocked"))
+                        .and_then(|v| fv.number_of(v)),
                 })
                 .collect::<Vec<_>>()
         })
@@ -153,13 +160,20 @@ pub fn build(input: BuildInput) -> Output {
     let mut areas: Vec<Area> = Vec::new();
     for a in techs.iter().filter_map(|t| t.area.as_ref()) {
         if !areas.iter().any(|x| &x.key == a) {
-            areas.push(Area { key: a.clone(), name: loc.get(a).unwrap_or_else(|| crate::trigger::humanize(a)) });
+            areas.push(Area {
+                key: a.clone(),
+                name: loc.get(a).unwrap_or_else(|| crate::trigger::humanize(a)),
+            });
         }
     }
 
     let mods = src.layers[1..]
         .iter()
-        .map(|l| ModInfo { name: l.name.clone(), path: l.root.display().to_string(), remote_id: l.remote_id.clone() })
+        .map(|l| ModInfo {
+            name: l.name.clone(),
+            path: l.root.display().to_string(),
+            remote_id: l.remote_id.clone(),
+        })
         .collect();
 
     Output {
@@ -191,7 +205,10 @@ pub fn extract_tech(key: &str, b: &Block, vars: &Vars, ctx: &TriggerCtx, source:
     let loc = ctx.loc;
     // Scalars, or blocks of the form `{ factor = X modifier = {...} }` (base value = factor/base).
     let num = |k: &str| match b.get(k)? {
-        Value::Block(c) => c.get("factor").or_else(|| c.get("base")).and_then(|v| vars.number_of(v)),
+        Value::Block(c) => c
+            .get("factor")
+            .or_else(|| c.get("base"))
+            .and_then(|v| vars.number_of(v)),
         v => vars.number_of(v),
     };
     let levels = b.get_str("levels").and_then(|s| s.parse::<i64>().ok());
@@ -213,7 +230,10 @@ pub fn extract_tech(key: &str, b: &Block, vars: &Vars, ctx: &TriggerCtx, source:
         }
     }
 
-    let (weight_factor, weight_modifiers) = b.get_block("weight_modifier").map(|wm| modifier_list(wm, vars, ctx)).unwrap_or_default();
+    let (weight_factor, weight_modifiers) = b
+        .get_block("weight_modifier")
+        .map(|wm| modifier_list(wm, vars, ctx))
+        .unwrap_or_default();
     let cost_modifiers = match b.get("cost") {
         Some(Value::Block(c)) => modifier_list(c, vars, ctx).1,
         _ => vec![],
@@ -223,7 +243,10 @@ pub fn extract_tech(key: &str, b: &Block, vars: &Vars, ctx: &TriggerCtx, source:
     let is_start_tech = b.get_bool("start_tech").unwrap_or(false);
     let is_repeatable = levels.is_some_and(|l| l != 1);
     let unconditional_zero = weight_modifiers.iter().any(|m| {
-        m.factor == Some(0.0) && m.condition.as_ref().is_some_and(|c| c.key == "always" && c.value.as_deref() == Some("yes"))
+        m.factor == Some(0.0)
+            && m.condition
+                .as_ref()
+                .is_some_and(|c| c.key == "always" && c.value.as_deref() == Some("yes"))
     });
     // Weight 0 is only "never drawn" when no modifier can add weight back.
     let can_add = weight_modifiers.iter().any(|m| m.add.is_some_and(|a| a > 0.0));
@@ -233,8 +256,14 @@ pub fn extract_tech(key: &str, b: &Block, vars: &Vars, ctx: &TriggerCtx, source:
 
     let mut unlocks = Vec::new();
     for flag in str_list(b, "feature_flags") {
-        let name = loc.get(&format!("feature_{flag}")).unwrap_or_else(|| crate::trigger::humanize(&flag));
-        unlocks.push(Unlock { kind: "feature".into(), key: flag, name });
+        let name = loc
+            .get(&format!("feature_{flag}"))
+            .unwrap_or_else(|| crate::trigger::humanize(&flag));
+        unlocks.push(Unlock {
+            kind: "feature".into(),
+            key: flag,
+            name,
+        });
     }
     if let Some(m) = b.get_block("modifier") {
         unlocks.extend(modifier_unlocks(m, loc));
@@ -244,7 +273,11 @@ pub fn extract_tech(key: &str, b: &Block, vars: &Vars, ctx: &TriggerCtx, source:
             if let Some(d) = p.value.as_block()
                 && let Some(title) = d.get_str("title")
             {
-                unlocks.push(Unlock { kind: p.key.clone(), key: title.into(), name: loc.name(title) });
+                unlocks.push(Unlock {
+                    kind: p.key.clone(),
+                    key: title.into(),
+                    name: loc.name(title),
+                });
             }
         }
     }
@@ -254,7 +287,11 @@ pub fn extract_tech(key: &str, b: &Block, vars: &Vars, ctx: &TriggerCtx, source:
         .filter_map(|p| p.value.as_block())
         .filter_map(|s| {
             let k = s.get_str("name")?;
-            Some(Swap { key: k.into(), name: loc.name(k), trigger: s.get_block("trigger").and_then(|t| ctx.block(t)) })
+            Some(Swap {
+                key: k.into(),
+                name: loc.name(k),
+                trigger: s.get_block("trigger").and_then(|t| ctx.block(t)),
+            })
         })
         .collect();
 
@@ -264,7 +301,9 @@ pub fn extract_tech(key: &str, b: &Block, vars: &Vars, ctx: &TriggerCtx, source:
         description: loc.get(&format!("{key}_desc")),
         area: b.get_str("area").map(str::to_string),
         category: str_list(b, "category"),
-        tier: b.get_str("tier").map(|t| vars.number(t).map_or_else(|| t.to_string(), |n| n.to_string())),
+        tier: b
+            .get_str("tier")
+            .map(|t| vars.number(t).map_or_else(|| t.to_string(), |n| n.to_string())),
         cost: num("cost"),
         cost_expr: match b.get("cost") {
             Some(Value::Block(c)) => c.get_str("factor").or_else(|| c.get_str("base")).map(str::to_string),
@@ -313,7 +352,11 @@ fn modifier_list(b: &Block, vars: &Vars, ctx: &TriggerCtx) -> (Option<f64>, Vec<
                             _ => cond.items.push(i.clone()),
                         }
                     }
-                    out.push(WeightModifier { factor, add, condition: ctx.block(&cond) });
+                    out.push(WeightModifier {
+                        factor,
+                        add,
+                        condition: ctx.block(&cond),
+                    });
                 }
             }
             _ => {}
@@ -328,7 +371,11 @@ fn modifier_unlocks(m: &Block, loc: &Localisation) -> Vec<Unlock> {
         match p.key.as_str() {
             "custom_tooltip" | "description" => {
                 if let Some(k) = p.value.as_str() {
-                    out.push(Unlock { kind: "tooltip".into(), key: k.into(), name: loc.name(k) });
+                    out.push(Unlock {
+                        kind: "tooltip".into(),
+                        key: k.into(),
+                        name: loc.name(k),
+                    });
                 }
             }
             k if k.starts_with("show_only_custom_tooltip") || k.starts_with("description") => {}
@@ -337,7 +384,11 @@ fn modifier_unlocks(m: &Block, loc: &Localisation) -> Vec<Unlock> {
                     .first(&[k.to_string(), format!("mod_{k}"), format!("mod_country_{k}")])
                     .unwrap_or_else(|| crate::trigger::humanize(k));
                 let value = p.value.as_str().map(format_modifier_value).unwrap_or_default();
-                out.push(Unlock { kind: "modifier".into(), key: k.into(), name: format!("{label}: {value}") });
+                out.push(Unlock {
+                    kind: "modifier".into(),
+                    key: k.into(),
+                    name: format!("{label}: {value}"),
+                });
             }
         }
     }
@@ -369,8 +420,15 @@ fn extract_categories(src: &GameSource, loc: &Localisation, techs: &[Tech]) -> V
                     *counts.entry(a).or_default() += 1;
                 }
             }
-            let area = counts.into_iter().max_by_key(|(a, n)| (*n, std::cmp::Reverse(*a))).map(|(a, _)| a.to_string());
-            out.push(Category { key: p.key.clone(), name: loc.name(&p.key), area });
+            let area = counts
+                .into_iter()
+                .max_by_key(|(a, n)| (*n, std::cmp::Reverse(*a)))
+                .map(|(a, _)| a.to_string());
+            out.push(Category {
+                key: p.key.clone(),
+                name: loc.name(&p.key),
+                area,
+            });
         }
     }
     out
@@ -400,7 +458,14 @@ fn scan_unlocks(src: &GameSource, loc: &Localisation, techs: &mut [Tech], index:
     }
 }
 
-fn add_object_unlocks(folder: &str, key: &str, body: &Block, loc: &Localisation, techs: &mut [Tech], index: &HashMap<String, usize>) {
+fn add_object_unlocks(
+    folder: &str,
+    key: &str,
+    body: &Block,
+    loc: &Localisation,
+    techs: &mut [Tech],
+    index: &HashMap<String, usize>,
+) {
     let mut targets: HashSet<String> = str_list(body, "prerequisites").into_iter().collect();
     if let Some(s) = body.get_str("show_in_tech") {
         targets.insert(s.to_string());
@@ -418,7 +483,11 @@ fn add_object_unlocks(folder: &str, key: &str, body: &Block, loc: &Localisation,
     let name = loc.first(&candidates).unwrap_or_else(|| key.to_string());
     for t in targets {
         if let Some(&i) = index.get(&t) {
-            techs[i].unlocks.push(Unlock { kind: folder.to_string(), key: key.to_string(), name: name.clone() });
+            techs[i].unlocks.push(Unlock {
+                kind: folder.to_string(),
+                key: key.to_string(),
+                name: name.clone(),
+            });
         }
     }
 }

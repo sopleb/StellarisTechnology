@@ -29,7 +29,12 @@ pub struct GameSource {
 impl GameSource {
     pub fn new(game: PathBuf) -> Self {
         GameSource {
-            layers: vec![Layer { name: "vanilla".into(), root: game, remote_id: None, replace_paths: vec![] }],
+            layers: vec![Layer {
+                name: "vanilla".into(),
+                root: game,
+                remote_id: None,
+                replace_paths: vec![],
+            }],
         }
     }
 
@@ -50,11 +55,17 @@ impl GameSource {
         let rel = rel.trim_matches('/');
         let dir = rel.rsplit_once('/').map_or("", |(d, _)| d);
         (0..self.layers.len()).rev().find_map(|idx| {
-            let hidden = self.layers[idx + 1..]
-                .iter()
-                .any(|l| l.replace_paths.iter().any(|h| dir == h.trim_matches('/') || dir.starts_with(&format!("{}/", h.trim_matches('/')))));
+            let hidden = self.layers[idx + 1..].iter().any(|l| {
+                l.replace_paths
+                    .iter()
+                    .any(|h| dir == h.trim_matches('/') || dir.starts_with(&format!("{}/", h.trim_matches('/'))))
+            });
             let p = self.layers[idx].root.join(rel);
-            (!hidden && p.is_file()).then(|| SourceFile { rel: rel.to_string(), path: p, layer: idx })
+            (!hidden && p.is_file()).then(|| SourceFile {
+                rel: rel.to_string(),
+                path: p,
+                layer: idx,
+            })
         })
     }
 
@@ -82,7 +93,9 @@ impl GameSource {
             if !base.is_dir() {
                 continue;
             }
-            let walker = walkdir::WalkDir::new(&base).min_depth(1).max_depth(if recursive { usize::MAX } else { 1 });
+            let walker = walkdir::WalkDir::new(&base)
+                .min_depth(1)
+                .max_depth(if recursive { usize::MAX } else { 1 });
             for entry in walker.into_iter().flatten() {
                 let p = entry.path();
                 if !entry.file_type().is_file() || !p.extension().is_some_and(|x| x.eq_ignore_ascii_case(ext)) {
@@ -91,10 +104,20 @@ impl GameSource {
                 let Ok(rel) = p.strip_prefix(&layer.root) else { continue };
                 let rel = rel.to_string_lossy().replace('\\', "/");
                 let parent = rel.rsplit_once('/').map_or("", |(d, _)| d);
-                if hidden.iter().any(|h| parent == *h || parent.starts_with(&format!("{h}/"))) {
+                if hidden
+                    .iter()
+                    .any(|h| parent == *h || parent.starts_with(&format!("{h}/")))
+                {
                     continue;
                 }
-                merged.insert(rel.clone(), SourceFile { rel, path: p.to_path_buf(), layer: idx });
+                merged.insert(
+                    rel.clone(),
+                    SourceFile {
+                        rel,
+                        path: p.to_path_buf(),
+                        layer: idx,
+                    },
+                );
             }
         }
         let mut out: Vec<SourceFile> = merged.into_values().collect();
@@ -132,15 +155,28 @@ mod tests {
         write(&m2, "common/buildings/new.txt", "n");
 
         let mut src = GameSource::new(g);
-        src.push(Layer { name: "m1".into(), root: m1, remote_id: None, replace_paths: vec![] });
+        src.push(Layer {
+            name: "m1".into(),
+            root: m1,
+            remote_id: None,
+            replace_paths: vec![],
+        });
         let tech = src.files("common/technology", "txt");
-        assert_eq!(tech.iter().map(|f| (f.rel.as_str(), f.layer)).collect::<Vec<_>>(), vec![
-            ("common/technology/00_a.txt", 1),
-            ("common/technology/01_b.txt", 0),
-            ("common/technology/zz_mod.txt", 1),
-        ]);
+        assert_eq!(
+            tech.iter().map(|f| (f.rel.as_str(), f.layer)).collect::<Vec<_>>(),
+            vec![
+                ("common/technology/00_a.txt", 1),
+                ("common/technology/01_b.txt", 0),
+                ("common/technology/zz_mod.txt", 1),
+            ]
+        );
 
-        src.push(Layer { name: "m2".into(), root: m2, remote_id: None, replace_paths: vec!["common/buildings".into()] });
+        src.push(Layer {
+            name: "m2".into(),
+            root: m2,
+            remote_id: None,
+            replace_paths: vec!["common/buildings".into()],
+        });
         let b = src.files_recursive("common", "txt");
         assert!(b.iter().any(|f| f.rel == "common/buildings/new.txt"));
         assert!(!b.iter().any(|f| f.rel == "common/buildings/00_x.txt"));
