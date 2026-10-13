@@ -137,25 +137,26 @@ pub fn build(input: BuildInput) -> Output {
     }
 
     let categories = extract_categories(src, &loc, &techs);
-    let tiers = src
-        .files("common/technology/tier", "txt")
-        .iter()
-        .flat_map(|f| {
-            let b = read(f);
-            let fv = vars.with_file(&b);
-            b.pairs()
-                .filter(|p| !p.key.starts_with('@'))
-                .map(|p| Tier {
-                    key: p.key.clone(),
-                    previously_unlocked: p
-                        .value
-                        .as_block()
-                        .and_then(|b| b.get("previously_unlocked"))
-                        .and_then(|v| fv.number_of(v)),
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect();
+    let mut tiers: Vec<Tier> = Vec::new();
+    for f in src.files("common/technology/tier", "txt") {
+        let b = read(&f);
+        let fv = vars.with_file(&b);
+        for p in b.pairs().filter(|p| !p.key.starts_with('@')) {
+            let tier = Tier {
+                key: p.key.clone(),
+                previously_unlocked: p
+                    .value
+                    .as_block()
+                    .and_then(|b| b.get("previously_unlocked"))
+                    .and_then(|v| fv.number_of(v)),
+            };
+            // A later definition replaces the earlier one in place.
+            match tiers.iter_mut().find(|t| t.key == tier.key) {
+                Some(t) => *t = tier,
+                None => tiers.push(tier),
+            }
+        }
+    }
 
     let mut areas: Vec<Area> = Vec::new();
     for a in techs.iter().filter_map(|t| t.area.as_ref()) {
@@ -217,13 +218,13 @@ pub fn extract_tech(key: &str, b: &Block, vars: &Vars, ctx: &TriggerCtx, source:
     let mut requires = BTreeMap::new();
     if let Some(pot) = potential {
         for p in pot.pairs() {
-            if let Some(v) = p.value.as_bool() {
+            if let Some(v) = bool_condition(p) {
                 requires.insert(p.key.clone(), v);
             } else if p.key == "NOT"
                 && let Some(inner) = p.value.as_block()
                 && inner.items.len() == 1
                 && let Some(ip) = inner.pairs().next()
-                && let Some(v) = ip.value.as_bool()
+                && let Some(v) = bool_condition(ip)
             {
                 requires.insert(ip.key.clone(), !v);
             }
@@ -246,10 +247,16 @@ pub fn extract_tech(key: &str, b: &Block, vars: &Vars, ctx: &TriggerCtx, source:
         m.factor == Some(0.0)
             && m.condition
                 .as_ref()
-                .is_some_and(|c| c.key == "always" && c.value.as_deref() == Some("yes"))
+                .is_none_or(|c| c.key == "always" && c.value.as_deref() == Some("yes"))
     });
     // Weight 0 is only "never drawn" when no modifier can add weight back.
-    let can_add = weight_modifiers.iter().any(|m| m.add.is_some_and(|a| a > 0.0));
+    // An `add` we cannot resolve (e.g. `value:...`) is assumed to possibly be positive.
+    let can_add = b.get_block("weight_modifier").is_some_and(|wm| {
+        wm.get_all("modifier")
+            .filter_map(|m| m.value.as_block())
+            .filter_map(|m| m.get("add"))
+            .any(|a| vars.number_of(a).is_none_or(|n| n > 0.0))
+    });
     let is_event = !is_start_tech
         && !is_repeatable
         && ((base_weight == Some(0.0) && !can_add) || weight_factor == Some(0.0) || unconditional_zero);
@@ -266,7 +273,7 @@ pub fn extract_tech(key: &str, b: &Block, vars: &Vars, ctx: &TriggerCtx, source:
         });
     }
     if let Some(m) = b.get_block("modifier") {
-        unlocks.extend(modifier_unlocks(m, loc));
+        unlocks.extend(modifier_unlocks(m, loc, vars));
     }
     if let Some(pd) = b.get_block("prereqfor_desc") {
         for p in pd.pairs() {
@@ -365,7 +372,17 @@ fn modifier_list(b: &Block, vars: &Vars, ctx: &TriggerCtx) -> (Option<f64>, Vec<
     (top, out)
 }
 
-fn modifier_unlocks(m: &Block, loc: &Localisation) -> Vec<Unlock> {
+/// `key = yes|no` (or `!= yes|no`) as the boolean the condition requires.
+fn bool_condition(p: &crate::script::Pair) -> Option<bool> {
+    let v = p.value.as_bool()?;
+    match p.op {
+        crate::script::Op::Eq | crate::script::Op::EqEq => Some(v),
+        crate::script::Op::Ne => Some(!v),
+        _ => None,
+    }
+}
+
+fn modifier_unlocks(m: &Block, loc: &Localisation, vars: &Vars) -> Vec<Unlock> {
     let mut out = Vec::new();
     for p in m.pairs() {
         match p.key.as_str() {
@@ -383,7 +400,11 @@ fn modifier_unlocks(m: &Block, loc: &Localisation) -> Vec<Unlock> {
                 let label = loc
                     .first(&[k.to_string(), format!("mod_{k}"), format!("mod_country_{k}")])
                     .unwrap_or_else(|| crate::trigger::humanize(k));
-                let value = p.value.as_str().map(format_modifier_value).unwrap_or_default();
+                let value = match (vars.number_of(&p.value), p.value.as_str()) {
+                    (Some(n), _) => format_modifier_value(k, n),
+                    (None, Some(raw)) => raw.to_string(),
+                    (None, None) => String::new(),
+                };
                 out.push(Unlock {
                     kind: "modifier".into(),
                     key: k.into(),
@@ -395,15 +416,21 @@ fn modifier_unlocks(m: &Block, loc: &Localisation) -> Vec<Unlock> {
     out
 }
 
-/// `0.1` → `+10%`, `3` → `+3`, `-0.25` → `-25%`.
-pub fn format_modifier_value(v: &str) -> String {
-    match v.parse::<f64>() {
-        Ok(n) if v.contains('.') => {
-            let pct = (n * 10000.0).round() / 100.0;
-            format!("{}{}%", if pct >= 0.0 { "+" } else { "" }, pct)
-        }
-        Ok(n) => format!("{}{}", if n >= 0.0 { "+" } else { "" }, n),
-        Err(_) => v.to_string(),
+/// Format a modifier value: `*_mult`/`*_percent` keys are percentages, `*_add` keys are flat,
+/// other keys fall back to "fractional means percentage".
+pub fn format_modifier_value(key: &str, n: f64) -> String {
+    let percent = if key.ends_with("_mult") || key.ends_with("_percent") || key.ends_with("_perc") {
+        true
+    } else if key.ends_with("_add") {
+        false
+    } else {
+        n.fract() != 0.0
+    };
+    let sign = if n >= 0.0 { "+" } else { "" };
+    if percent {
+        format!("{sign}{}%", (n * 10000.0).round() / 100.0)
+    } else {
+        format!("{sign}{}", (n * 1000.0).round() / 1000.0)
     }
 }
 
@@ -411,9 +438,6 @@ fn extract_categories(src: &GameSource, loc: &Localisation, techs: &[Tech]) -> V
     let mut out: Vec<Category> = Vec::new();
     for f in src.files("common/technology/category", "txt") {
         for p in read(&f).pairs().filter(|p| !p.key.starts_with('@')) {
-            if out.iter().any(|c| c.key == p.key) {
-                continue;
-            }
             let mut counts: HashMap<&str, usize> = HashMap::new();
             for t in techs.iter().filter(|t| t.category.contains(&p.key)) {
                 if let Some(a) = &t.area {
@@ -424,18 +448,48 @@ fn extract_categories(src: &GameSource, loc: &Localisation, techs: &[Tech]) -> V
                 .into_iter()
                 .max_by_key(|(a, n)| (*n, std::cmp::Reverse(*a)))
                 .map(|(a, _)| a.to_string());
-            out.push(Category {
+            let cat = Category {
                 key: p.key.clone(),
                 name: loc.name(&p.key),
                 area,
-            });
+            };
+            match out.iter_mut().find(|c| c.key == cat.key) {
+                Some(c) => *c = cat,
+                None => out.push(cat),
+            }
         }
     }
     out
 }
 
+/// (`common/` folder, object key).
+type ObjectId = (String, String);
+/// (display name, tech keys it points at).
+type ObjectEntry = (String, Vec<String>);
+
 /// Scan every `common/**` object for `prerequisites`/`show_in_tech` naming a tech.
 fn scan_unlocks(src: &GameSource, loc: &Localisation, techs: &mut [Tech], index: &HashMap<String, usize>) {
+    // (folder, object key) → (display name, tech keys); a later definition replaces an earlier one,
+    // mirroring how the game overrides objects redefined in another file.
+    let mut objects: Vec<(ObjectId, ObjectEntry)> = Vec::new();
+    let mut slot: HashMap<ObjectId, usize> = HashMap::new();
+    let mut record = |folder: &str, key: &str, body: &Block| {
+        let id = (folder.to_string(), key.to_string());
+        let targets = object_targets(body);
+        let name = if targets.is_empty() {
+            String::new()
+        } else {
+            object_name(folder, key, loc)
+        };
+        let entry = (name, targets);
+        match slot.get(&id) {
+            Some(&i) => objects[i].1 = entry,
+            None => {
+                slot.insert(id.clone(), objects.len());
+                objects.push((id, entry));
+            }
+        }
+    };
     for f in src.files_recursive("common", "txt") {
         if SKIP_UNLOCK_DIRS.iter().any(|d| f.rel.starts_with(&format!("{d}/"))) {
             continue;
@@ -448,31 +502,39 @@ fn scan_unlocks(src: &GameSource, loc: &Localisation, techs: &mut [Tech], index:
         for p in block.pairs() {
             let Some(body) = p.value.as_block() else { continue };
             let key = body.get_str("key").unwrap_or(&p.key);
-            add_object_unlocks(&folder, key, body, loc, techs, index);
+            record(&folder, key, body);
             for opt in body.get_all("option").filter_map(|o| o.value.as_block()) {
                 if let Some(n) = opt.get_str("name") {
-                    add_object_unlocks(&folder, n, opt, loc, techs, index);
+                    record(&folder, n, opt);
                 }
+            }
+        }
+    }
+    for ((folder, key), (name, targets)) in objects {
+        for t in targets {
+            if let Some(&i) = index.get(&t) {
+                techs[i].unlocks.push(Unlock {
+                    kind: folder.clone(),
+                    key: key.clone(),
+                    name: name.clone(),
+                });
             }
         }
     }
 }
 
-fn add_object_unlocks(
-    folder: &str,
-    key: &str,
-    body: &Block,
-    loc: &Localisation,
-    techs: &mut [Tech],
-    index: &HashMap<String, usize>,
-) {
-    let mut targets: HashSet<String> = str_list(body, "prerequisites").into_iter().collect();
+/// Tech keys an object points at via `prerequisites` / `show_in_tech`.
+fn object_targets(body: &Block) -> Vec<String> {
+    let mut targets = str_list(body, "prerequisites");
     if let Some(s) = body.get_str("show_in_tech") {
-        targets.insert(s.to_string());
+        targets.push(s.to_string());
     }
-    if targets.is_empty() {
-        return;
-    }
+    let mut seen = HashSet::new();
+    targets.retain(|t| seen.insert(t.clone()));
+    targets
+}
+
+fn object_name(folder: &str, key: &str, loc: &Localisation) -> String {
     let mut candidates = vec![key.to_string()];
     for (dir, prefix) in NAME_PREFIXES {
         if *dir == folder {
@@ -480,16 +542,7 @@ fn add_object_unlocks(
         }
     }
     candidates.push(format!("{key}_name"));
-    let name = loc.first(&candidates).unwrap_or_else(|| key.to_string());
-    for t in targets {
-        if let Some(&i) = index.get(&t) {
-            techs[i].unlocks.push(Unlock {
-                kind: folder.to_string(),
-                key: key.to_string(),
-                name: name.clone(),
-            });
-        }
-    }
+    loc.first(&candidates).unwrap_or_else(|| key.to_string())
 }
 
 fn dedup(v: &mut Vec<Unlock>) {
@@ -503,10 +556,11 @@ mod tests {
 
     #[test]
     fn modifier_values() {
-        assert_eq!(format_modifier_value("0.1"), "+10%");
-        assert_eq!(format_modifier_value("-0.25"), "-25%");
-        assert_eq!(format_modifier_value("3"), "+3");
-        assert_eq!(format_modifier_value("0.075"), "+7.5%");
-        assert_eq!(format_modifier_value("yes"), "yes");
+        assert_eq!(format_modifier_value("x_mult", 0.1), "+10%");
+        assert_eq!(format_modifier_value("x", -0.25), "-25%");
+        assert_eq!(format_modifier_value("x_add", 3.0), "+3");
+        assert_eq!(format_modifier_value("x_add", 0.5), "+0.5");
+        assert_eq!(format_modifier_value("x_mult", 1.0), "+100%");
+        assert_eq!(format_modifier_value("x", 0.075), "+7.5%");
     }
 }

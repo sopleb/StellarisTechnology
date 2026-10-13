@@ -96,7 +96,8 @@ pub fn parse_yml(text: &str) -> Vec<(String, String)> {
             continue;
         }
         let rest = &line[colon + 1..];
-        let (Some(start), Some(end)) = (rest.find('"'), rest.rfind('"')) else {
+        let Some(start) = rest.find('"') else { continue };
+        let Some(end) = closing_quote(rest, start) else {
             continue;
         };
         if end <= start {
@@ -109,6 +110,19 @@ pub fn parse_yml(text: &str) -> Vec<(String, String)> {
         out.push((key.to_string(), rest[start + 1..end].to_string()));
     }
     out
+}
+
+/// The closing quote: the first quote after `start` that is followed only by
+/// whitespace or a `#` comment (so quotes inside the text or a comment are kept/ignored).
+fn closing_quote(rest: &str, start: usize) -> Option<usize> {
+    rest.char_indices()
+        .skip_while(|(i, _)| *i <= start)
+        .filter(|(_, c)| *c == '"')
+        .map(|(i, _)| i)
+        .find(|&i| {
+            let after = rest[i + 1..].trim_start();
+            after.is_empty() || after.starts_with('#')
+        })
 }
 
 #[cfg(test)]
@@ -127,6 +141,11 @@ mod tests {
                 ("c".into(), "".into())
             ]
         );
+    }
+
+    #[test]
+    fn quoted_comment_after_value() {
+        assert_eq!(parse_yml(" k:0 \"text\" # \"note\""), vec![("k".into(), "text".into())]);
     }
 
     #[test]

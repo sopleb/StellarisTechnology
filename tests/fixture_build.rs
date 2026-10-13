@@ -60,6 +60,7 @@ fn vanilla_extraction() {
     assert_eq!(t.prerequisites, ["tech_lasers_1"]);
     assert_eq!(t.requires.get("is_gestalt"), Some(&false));
     assert_eq!(t.requires.get("is_machine_empire"), Some(&false));
+    assert_eq!(t.requires.get("is_hive_empire"), Some(&false), "!= yes means false");
     assert_eq!(t.weight_modifiers.len(), 2);
     let wm = &t.weight_modifiers[0];
     assert_eq!(wm.factor, Some(0.5));
@@ -123,6 +124,23 @@ fn mods_override_and_extend() {
     // mod_b's replace_path drops vanilla buildings; its own building unlocks tech_mod_a.
     assert!(!l1.unlocks.iter().any(|u| u.kind == "buildings"));
     assert!(tech(&o, "tech_mod_a").unlocks.iter().any(|u| u.key == "building_mod"));
+}
+
+#[test]
+fn object_redefined_in_other_file_moves_unlock() {
+    let o = run(&["mod_a"], "english");
+    assert!(
+        !tech(&o, "tech_lasers_1")
+            .unlocks
+            .iter()
+            .any(|u| u.key == "building_lab")
+    );
+    assert!(
+        tech(&o, "tech_mod_a")
+            .unlocks
+            .iter()
+            .any(|u| u.key == "building_lab" && u.name == "Lab")
+    );
 }
 
 #[test]
