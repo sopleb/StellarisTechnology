@@ -8,9 +8,12 @@ static REF: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\$([A-Za-z0-9_.\-]+)
 static COLOR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"§[A-Za-z0-9!]").unwrap());
 static ICON: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"£[^£\s]+£\s?").unwrap());
 
-/// Case-insensitive key → raw text table. Later inserts override earlier ones.
+/// Key → raw text table. Paradox keys are case-sensitive (`astral_threads` and
+/// `ASTRAL_THREADS` can differ), so an exact match wins and a case-insensitive one
+/// is the fallback. Later inserts override earlier ones.
 #[derive(Debug, Default, Clone)]
 pub struct Localisation {
+    exact: HashMap<String, String>,
     map: HashMap<String, String>,
 }
 
@@ -24,22 +27,26 @@ impl Localisation {
     }
 
     pub fn insert(&mut self, key: &str, value: &str) {
+        self.exact.insert(key.to_string(), value.to_string());
         self.map.insert(key.to_lowercase(), value.to_string());
     }
 
     /// Parse one `.yml` file's text and merge it in.
     pub fn load_str(&mut self, text: &str) {
         for (k, v) in parse_yml(text) {
-            self.map.insert(k.to_lowercase(), v);
+            self.insert(&k, &v);
         }
     }
 
     pub fn contains(&self, key: &str) -> bool {
-        self.map.contains_key(&key.to_lowercase())
+        self.raw(key).is_some()
     }
 
     pub fn raw(&self, key: &str) -> Option<&str> {
-        self.map.get(&key.to_lowercase()).map(String::as_str)
+        self.exact
+            .get(key)
+            .or_else(|| self.map.get(&key.to_lowercase()))
+            .map(String::as_str)
     }
 
     /// Resolved, display-ready text for `key`, if it exists.
@@ -79,6 +86,19 @@ impl Localisation {
         let s = ICON.replace_all(&s, "");
         s.trim().to_string()
     }
+}
+
+/// Remove `$PARAM$` placeholders that were left unresolved (filled in by the game at runtime).
+pub fn strip_refs(text: &str) -> String {
+    let s = REF.replace_all(text, "");
+    let mut out = String::with_capacity(s.len());
+    for w in s.split(' ').filter(|w| !w.is_empty()) {
+        if !out.is_empty() {
+            out.push(' ');
+        }
+        out.push_str(w);
+    }
+    out
 }
 
 /// Parse Paradox's YAML-like format: `l_english:` header, then ` key:0 "text"` lines.
@@ -156,6 +176,20 @@ mod tests {
         );
         assert_eq!(l.get("CORVETTE").unwrap(), "Hull: +10%\n$unknown$ $x|y$");
         assert_eq!(l.name("missing_key"), "missing_key");
+    }
+
+    #[test]
+    fn case_sensitive_keys_win_over_case_insensitive() {
+        let mut l = Localisation::default();
+        l.load_str(" astral_threads: \"Astral Threads\"\n ASTRAL_THREADS: \"$astral_threads$\"\n MOD_X: \"X\"");
+        assert_eq!(l.get("ASTRAL_THREADS").unwrap(), "Astral Threads");
+        assert_eq!(l.get("astral_threads").unwrap(), "Astral Threads");
+        assert_eq!(l.get("mod_x").unwrap(), "X");
+    }
+
+    #[test]
+    fn strips_unresolved_params() {
+        assert_eq!(strip_refs("Has $CIVIC|Y$ Civic"), "Has Civic");
     }
 
     #[test]

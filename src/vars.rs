@@ -31,6 +31,27 @@ impl Vars {
         self.number_depth(s, 0)
     }
 
+    /// Fill `$@var|fmt$` references in localised text. A `%` in the format shows the
+    /// value as a percentage (`0.25` → `25%`); unknown variables are left as they are.
+    pub fn render_refs(&self, text: &str) -> String {
+        let mut out = String::new();
+        let mut rest = text;
+        while let Some(start) = rest.find("$@") {
+            let Some(len) = rest[start + 1..].find('$') else { break };
+            let inner = &rest[start + 1..start + 1 + len];
+            let (name, fmt) = inner.split_once('|').unwrap_or((inner, ""));
+            out.push_str(&rest[..start]);
+            match self.number(name) {
+                Some(n) if fmt.contains('%') => out.push_str(&format!("{}%", trim_num(n * 100.0))),
+                Some(n) => out.push_str(&trim_num(n)),
+                None => out.push_str(&rest[start..start + len + 2]),
+            }
+            rest = &rest[start + len + 2..];
+        }
+        out.push_str(rest);
+        out
+    }
+
     /// Replace every `@[ expr ]` in `s` with its value (integers without a decimal point).
     pub fn eval_inline_math(&self, s: &str) -> String {
         let mut out = String::new();
@@ -167,9 +188,25 @@ fn unary(t: &[T], p: &mut usize, l: &dyn Fn(&str) -> Option<f64>) -> Option<f64>
     }
 }
 
+fn trim_num(n: f64) -> String {
+    let r = (n * 100.0).round() / 100.0;
+    if r.fract() == 0.0 {
+        format!("{}", r as i64)
+    } else {
+        r.to_string()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn renders_var_refs_in_text() {
+        let mut v = Vars::default();
+        v.add_from(&crate::script::parse("@a = 0.25 @b = 15").0);
+        assert_eq!(v.render_refs("x +$@a|0%$ y +$@b|0$% $@c$"), "x +25% y +15% $@c$");
+    }
     use crate::script::parse;
 
     #[test]

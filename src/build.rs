@@ -391,14 +391,14 @@ fn modifier_unlocks(m: &Block, loc: &Localisation, vars: &Vars) -> Vec<Unlock> {
                     out.push(Unlock {
                         kind: "tooltip".into(),
                         key: k.into(),
-                        name: loc.name(k),
+                        name: vars.render_refs(&loc.name(k)),
                     });
                 }
             }
             k if k.starts_with("show_only_custom_tooltip") || k.starts_with("description") => {}
             k => {
                 let label = loc
-                    .first(&[k.to_string(), format!("mod_{k}"), format!("mod_country_{k}")])
+                    .first(&[format!("mod_{k}"), format!("mod_country_{k}"), k.to_string()])
                     .unwrap_or_else(|| crate::trigger::humanize(k));
                 let value = match (vars.number_of(&p.value), p.value.as_str()) {
                     (Some(n), _) => format_modifier_value(k, n),

@@ -100,7 +100,11 @@ impl TriggerCtx<'_> {
 
     /// Localised name of a trigger key, else a humanized form of it.
     fn key_name(&self, key: &str) -> String {
-        self.loc.get(&format!("trigger_{key}")).unwrap_or_else(|| humanize(key))
+        self.loc
+            .get(&format!("trigger_{key}"))
+            .map(|t| crate::loc::strip_refs(&t))
+            .filter(|t| !t.is_empty())
+            .unwrap_or_else(|| humanize(key))
     }
 
     fn value_name(&self, value: &str) -> String {
