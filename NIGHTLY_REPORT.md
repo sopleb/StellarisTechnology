@@ -24,20 +24,24 @@
 The 4 warnings come from GigaStructures prerequisites that name ACOT techs. ACOT is a separate mod that I didn't load.
 
 ## Tests
-- `cargo test` runs 32 unit tests and 4 fixture integration tests. The fixtures hold a mini game and 2 mods, covering overrides, `replace_path`, `replace/` localisation, German, events, cost blocks, swaps and inline scripts.
+- `cargo test` runs 37 unit tests and 6 fixture integration tests. The fixtures hold a mini game and 3 mods, covering overrides, `replace_path`, `replace/` localisation, German, events, cost blocks, swaps, inline scripts and the duplicate-key rules.
 - `cargo test -- --ignored` runs 3 acceptance tests against the real install. They check that:
   - the tech count equals the definition count;
   - vanilla produces no warnings;
   - more than 95% of names are localised;
   - every non-repeatable tech has a category;
-  - GigaStructures loads.
+  - GigaStructures loads;
+  - no game markup (`$PARAM$`, `['link']`, `[Function]`, `§`/`£` codes) survives in names, descriptions, unlocks or condition text, for vanilla and for GigaStructures.
 - `cargo clippy --all-targets -- -D warnings` passes.
 - A code review found no panics, 7 real bugs and a few minor ones. I fixed all of them and added regression tests.
 
 ## Fixed after the first report
 - **Localisation keys are case-sensitive.** `astral_threads` and `ASTRAL_THREADS` hold different text. The tool now tries the exact key first, which removed names like `$NEUROCHIPS$ (Siege)`.
-- **Runtime placeholders:** the tool drops placeholders such as `$CIVIC|Y$` from condition text and fills `$@var|0%$` in effect text from script variables.
-- **Description parameters:** a modifier can pass values to its text through `description_parameters = { POINTS = @var }`. The tool now fills them and applies the game's format codes (decimals, `+` sign, `%`), so Gene Tailoring reads "Species Modification Points: +2". No `$...$` placeholder remains in the vanilla, GigaStructures or 36-mod playset output.
+- **Runtime placeholders:** the tool drops placeholders the game fills during play, such as `$CIVIC$`, and fills `$@var|0%$` in effect text from script variables.
+- **Description parameters:** a modifier can pass values to its text through `description_parameters = { POINTS = @var }`. The tool fills them and applies the game's format codes (decimals, `+` sign, `%`), so Gene Tailoring reads "Species Modification Points: +2".
+- **Concept links:** 4.x text links to game concepts with `['civic:$CIVIC$', $CIVIC_NAME$]`. The tool shows the link's text, or the linked item's name, so "Has ['civic:', ] Civic: Wilderness" now reads "Has Civic: Wilderness". My first placeholder scan only looked for `$` and missed these: vanilla had 367 such condition texts.
+- **Scripted text:** the tool reads `common/scripted_loc` and shows each function's default text, so "Produced from [GetFarmerSwapPluralWithIcon]" reads "Produced from Farmers". It drops icon calls (`[farmer.GetIcon]`) and fills name calls (`[farmer.GetNamePlural]`). Text that depends on your empire, such as gestalt job names, shows the regular-empire version.
+- **Markup scan:** vanilla, GigaStructures, the 36-mod playset and German output now contain no `$PARAM$`, `['link']`, `[Function]`, `§` or `£` markup. The acceptance tests check this for vanilla and GigaStructures.
 - **"One of" prerequisites:** `prerequisites` can hold `OR = { … }` groups. The tool used to drop them, which left Titans and Juggernaut with no prerequisites. 19 vanilla techs use these groups. The output now lists them in `prerequisite_groups`.
 
 ## Known gaps and judgement calls
@@ -52,6 +56,10 @@ The 4 warnings come from GigaStructures prerequisites that name ACOT techs. ACOT
 
   Vanilla 4.5.2 has 106 such techs.
 - **Modifier values:** keys ending in `_mult`, `_percent` or `_perc` show as percentages, and `_add` keys show as flat numbers. Any other key shows as a percentage when its value is fractional.
+
+## Not verified
+- **Duplicate-key rules in the game itself:** I can't run Stellaris and read its tech screen from here. To check the one visible case, load "Ep3o's Essential Mods -4.3 fix" and look at Hyper Drive Theory in the tech screen. If the wiki's rules hold, it doesn't list Sensor 1 as an unlock. If it does, component templates use last-wins in 4.5 and the rule table needs changing.
+- **Localisation overrides:** the wiki only says text overrides are "likely" last-wins, which the tool assumes.
 
 ## Housekeeping
 - **Java repo:** before the move, I made one commit (`0bd693f`) on `master` in the Java repo at `../stellaris-technology`. It adds the design spec and 3 `.gitignore` lines. Run `git reset --hard HEAD~1` there to drop it.

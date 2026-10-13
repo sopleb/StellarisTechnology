@@ -116,6 +116,22 @@ pub fn load_localisation(src: &GameSource, lang: &str) -> Localisation {
             Err(e) => log::warn!("cannot read {}: {e}", f.path.display()),
         }
     }
+    // `defined_text = { name = X text = {...} default = key }`; without a default, the first text's key.
+    for f in src.files("common/scripted_loc", "txt") {
+        // GigaStructures and others also write `define_text`.
+        for p in read(&f)
+            .pairs()
+            .filter(|p| p.key == "defined_text" || p.key == "define_text")
+        {
+            let Some(b) = p.value.as_block() else { continue };
+            let first = b
+                .get_all("text")
+                .find_map(|t| t.value.as_block()?.get_str("localization_key"));
+            if let (Some(name), Some(key)) = (b.get_str("name"), b.get_str("default").or(first)) {
+                loc.add_function(name, key);
+            }
+        }
+    }
     loc
 }
 

@@ -89,6 +89,44 @@ fn vanilla_acceptance() {
     let lasers = o.techs.iter().find(|t| t.key == "tech_lasers_2").unwrap();
     assert_eq!(lasers.prerequisites, ["tech_lasers_1"]);
     assert!(lasers.unlocks.iter().any(|u| u.key == "SMALL_BLUE_LASER"));
+    assert_no_markup(&o);
+}
+
+/// No game markup may survive into display text: `$PARAM$`, `['link']`, `[Function]`, `§`/`£` codes.
+fn assert_no_markup(o: &stellaris_tech::model::Output) {
+    fn walk(t: &stellaris_tech::model::Trigger, out: &mut Vec<String>) {
+        out.push(t.text.clone());
+        t.children
+            .iter()
+            .chain(t.scripted.iter().flatten())
+            .for_each(|c| walk(c, out));
+    }
+    let markup = regex::Regex::new(r"\$[A-Za-z@]|\['|[§£]|\[[A-Za-z][\w.:]*\]").unwrap();
+    let mut bad = Vec::new();
+    for t in &o.techs {
+        let mut texts = vec![t.name.clone(), t.description.clone().unwrap_or_default()];
+        texts.extend(t.unlocks.iter().map(|u| u.name.clone()));
+        texts.extend(t.swaps.iter().map(|s| s.name.clone()));
+        let triggers = t.potential.iter().chain(&t.starting_potential);
+        let conds = t
+            .weight_modifiers
+            .iter()
+            .chain(&t.cost_modifiers)
+            .filter_map(|m| m.condition.as_ref());
+        triggers.chain(conds).for_each(|tr| walk(tr, &mut texts));
+        bad.extend(
+            texts
+                .into_iter()
+                .filter(|x| markup.is_match(x))
+                .map(|x| format!("{}: {x}", t.key)),
+        );
+    }
+    assert!(
+        bad.is_empty(),
+        "{} texts with markup, e.g. {:?}",
+        bad.len(),
+        &bad[..bad.len().min(5)]
+    );
 }
 
 #[test]
@@ -102,4 +140,5 @@ fn gigastructures_acceptance() {
         .count();
     assert!(giga > 100, "{giga} giga techs");
     assert_eq!(o.meta.mods.len(), 1);
+    assert_no_markup(&o);
 }
