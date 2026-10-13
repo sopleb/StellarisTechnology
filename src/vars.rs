@@ -31,6 +31,25 @@ impl Vars {
         self.number_depth(s, 0)
     }
 
+    /// Replace every `@[ expr ]` in `s` with its value (integers without a decimal point).
+    pub fn eval_inline_math(&self, s: &str) -> String {
+        let mut out = String::new();
+        let mut rest = s;
+        while let Some(start) = rest.find("@[") {
+            let Some(len) = rest[start..].find(']') else { break };
+            out.push_str(&rest[..start]);
+            let expr = &rest[start..start + len + 1];
+            match self.number(expr) {
+                Some(n) if n.fract() == 0.0 => out.push_str(&format!("{}", n as i64)),
+                Some(n) => out.push_str(&n.to_string()),
+                None => out.push_str(expr),
+            }
+            rest = &rest[start + len + 1..];
+        }
+        out.push_str(rest);
+        out
+    }
+
     pub fn number_of(&self, v: &Value) -> Option<f64> {
         v.as_str().and_then(|s| self.number(s))
     }
@@ -76,7 +95,7 @@ fn lex(s: &str) -> Option<Vec<T>> {
     while i < c.len() {
         match c[i] {
             ch if ch.is_whitespace() => i += 1,
-            '+' | '-' | '*' | '/' | '(' | ')' => {
+            '+' | '-' | '*' | '/' | '%' | '(' | ')' => {
                 out.push(T::Sym(c[i]));
                 i += 1;
             }
@@ -112,10 +131,14 @@ fn sum(t: &[T], p: &mut usize, l: &dyn Fn(&str) -> Option<f64>) -> Option<f64> {
 
 fn product(t: &[T], p: &mut usize, l: &dyn Fn(&str) -> Option<f64>) -> Option<f64> {
     let mut v = unary(t, p, l)?;
-    while let Some(T::Sym(op @ ('*' | '/'))) = t.get(*p) {
+    while let Some(T::Sym(op @ ('*' | '/' | '%'))) = t.get(*p) {
         *p += 1;
         let r = unary(t, p, l)?;
-        v = if *op == '*' { v * r } else { v / r };
+        v = match op {
+            '*' => v * r,
+            '/' => v / r,
+            _ => v % r,
+        };
     }
     Some(v)
 }
@@ -150,6 +173,14 @@ mod tests {
     use crate::script::parse;
 
     #[test]
+    fn inline_math_in_strings() {
+        let v = Vars::default();
+        assert_eq!(v.eval_inline_math("case_@[ 1 + 1 ]_x"), "case_2_x");
+        assert_eq!(v.eval_inline_math("a@[ 1 / 2 ]"), "a0.5");
+        assert_eq!(v.eval_inline_math("no math"), "no math");
+    }
+
+    #[test]
     fn resolves_vars_and_math() {
         let (g, _) = parse("@base = 100 @mult = @base");
         let mut v = Vars::default();
@@ -162,6 +193,7 @@ mod tests {
         assert_eq!(v.number("@[ (base - 40) / -2 ]"), Some(-30.0));
         assert_eq!(v.number("@[-local]"), Some(-3.0));
         assert_eq!(v.number("@missing"), None);
+        assert_eq!(v.number("@[ ((-0.5 % 1) + 1) % 1 ]"), Some(0.5));
         assert_eq!(v.number("@[ 1 + ]"), None);
     }
 }

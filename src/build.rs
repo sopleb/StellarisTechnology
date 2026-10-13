@@ -84,7 +84,7 @@ pub fn build(input: BuildInput) -> Output {
 
     let mut scripted = HashMap::new();
     for f in src.files("common/scripted_triggers", "txt") {
-        let b = inline::expand(&read(&f), src);
+        let b = inline::expand(&read(&f), src, &vars);
         for p in b.pairs() {
             if let Some(body) = p.value.as_block() {
                 scripted.insert(p.key.clone(), body.clone());
@@ -99,7 +99,7 @@ pub fn build(input: BuildInput) -> Output {
     for f in src.files("common/technology", "txt") {
         let raw = read(&f);
         let fvars = vars.with_file(&raw);
-        let block = inline::expand(&raw, src);
+        let block = inline::expand(&raw, src, &fvars);
         for p in block.pairs() {
             let Some(body) = p.value.as_block() else { continue };
             if p.key.starts_with('@') {

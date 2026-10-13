@@ -105,6 +105,20 @@ pub fn tokenize(src: &str) -> Vec<Token> {
             _ => {
                 let mut s = String::new();
                 while i < chars.len() && !is_delim(chars[i]) {
+                    // Embedded inline math (`case_@[ x + 1 ]`) is part of the scalar.
+                    if chars[i] == '@' && chars.get(i + 1) == Some(&'[') {
+                        while i < chars.len() {
+                            if chars[i] == '\n' {
+                                line += 1;
+                            }
+                            s.push(chars[i]);
+                            i += 1;
+                            if s.ends_with(']') {
+                                break;
+                            }
+                        }
+                        continue;
+                    }
                     s.push(chars[i]);
                     i += 1;
                 }
@@ -153,6 +167,16 @@ mod tests {
                 Tok::Scalar("value:f|A|$B$|".into()),
             ]
         );
+    }
+
+    #[test]
+    fn embedded_math() {
+        assert_eq!(toks("s = a_@[ 1 - (x) ] b"), vec![
+            Tok::Scalar("s".into()),
+            Tok::Op(Op::Eq),
+            Tok::Scalar("a_@[ 1 - (x) ]".into()),
+            Tok::Scalar("b".into()),
+        ]);
     }
 
     #[test]
